@@ -7,6 +7,8 @@ license = "MIT"
 readme = "README.md"
 repository = "https://github.com/bhadri01/fastapi-querybuilder"
 keywords = ["fastapi", "sqlalchemy", "filters", "query", "sort", "search", "pagination", "api", "rest"]
+include = ["fastapi_querybuilder/py.typed"]
+packages = [{ include = "fastapi_querybuilder" }]
 
 classifiers = [
     "Framework :: FastAPI",

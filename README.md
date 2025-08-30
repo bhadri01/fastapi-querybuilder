@@ -65,7 +65,7 @@ pip install fastapi-querybuilder
 
 ```python
 from fastapi import FastAPI, Depends
-from fastapi-querybuilder.dependencies import QueryBuilder
+from fastapi_querybuilder import QueryBuilder
 from sqlalchemy.ext.asyncio import AsyncSession
 
 app = FastAPI()
@@ -156,7 +156,7 @@ class User(Base):
 
 ```python
 from fastapi import FastAPI, Depends, HTTPException
-from fastapi-querybuilder.dependencies import QueryBuilder
+from fastapi_querybuilder import QueryBuilder
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List
 
@@ -448,7 +448,7 @@ GET /users?filters={"created_at": {"$eq": "2023-12-01T10:30:00"}}
 Create custom parameter classes for specialized endpoints:
 
 ```python
-from fastapi-querybuilder.params import QueryParams
+from fastapi_querybuilder.params import QueryParams
 from fastapi import Query
 from typing import Optional
 
@@ -533,7 +533,7 @@ class User(Base):
 
 ```python
 from fastapi import HTTPException
-from fastapi-querybuilder.dependencies import QueryBuilder
+from fastapi_querybuilder import QueryBuilder
 
 @app.get("/users")
 async def get_users_with_error_handling(
