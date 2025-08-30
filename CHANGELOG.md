@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.10] - 2025-08-30
+
+### 🐛 Bug Fixes
+
+- Refactor import statement for QueryBuilder and format code for consistency
+
 ## [0.1.9] - 2025-06-08
 
 ### 🐛 Bug Fixes

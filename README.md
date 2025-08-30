@@ -1174,11 +1174,10 @@ SOFTWARE.
 
 ## 📞 Support & Community
 
-- 🐛 **Bug Reports**: [GitHub Issues](https://github.com/yourusername/fastapi-querybuilder/issues)
-- 💬 **Discussions**: [GitHub Discussions](https://github.com/yourusername/fastapi-querybuilder/discussions)
-- 📧 **Email**: support@fastapi-querybuilder.com
-- 💼 **LinkedIn**: [FastAPI QueryBuilder](https://linkedin.com/company/fastapi-querybuilder)
-- 🐦 **Twitter**: [@FastAPIQueryBuilder](https://twitter.com/FastAPIQueryBuilder)
+- 🐛 **Bug Reports**: [GitHub Issues](https://github.com/bhadri01/fastapi-querybuilder/issues)
+- 💬 **Discussions**: [GitHub Discussions](https://github.com/bhadri01/fastapi-querybuilder/discussions)
+- 📧 **Email**: support@bhadrinathan28.com
+
 
 ## 🌟 Show Your Support
 
