@@ -126,7 +126,7 @@ class QueryParams(BaseModel):
     SCHEMA: ClassVar[Optional[QueryParamsSchemaResponse]] = None
 
     filters: Optional[FilterSchema] = Query(default=None, description="Filters in JSON format.")
-    sort: list[SortField] = Query(default_factory=list, description="e.g. name:asc,phone:desc or user.email:desc")
+    sort: Optional[list[SortField]] = Query(default=None, description="e.g. name:asc,phone:desc or user.email:desc")
     search: Optional[str | None] = Query(default=None, description="A string for global search across string fields.")
 
     def __init_subclass__(cls, **kwargs):
