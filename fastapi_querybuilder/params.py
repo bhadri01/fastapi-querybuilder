@@ -7,6 +7,7 @@ from pydantic import (
     Field,
     RootModel,
     TypeAdapter,
+    ValidationError,
     ValidationInfo,
     field_validator,
     model_validator,
@@ -22,7 +23,7 @@ COMPARISON_OPERATORS = {op for op in Operator if op not in LOGICAL_OPERATORS}
 LIST_BASED_OPERATORS = {Operator.IN, Operator.ISANYOF}
 
 
-def _validate_field_path(model: type[DeclarativeBase], path: str):
+def _validate_field_path(model: type[DeclarativeBase], path: str, errors: list[dict] | None = None) -> bool:
     parts = path.split(".")
     current_model = model
     for i, part in enumerate(parts):
@@ -30,53 +31,105 @@ def _validate_field_path(model: type[DeclarativeBase], path: str):
         current_inspector = inspect(current_model)
         if part in current_inspector.columns:
             if not is_last_part:
-                raise ValueError(
-                    f"The field '{part}' in the path '{path}' is a column and cannot have more relationships."
-                )
+                error_msg = f"The field '{part}' in the path '{path}' is a column and cannot have more relationships."
+                if errors is not None:
+                    errors.append({"loc": (path,), "msg": error_msg, "type": "value_error"})
+                    return False
+                else:
+                    raise ValueError(error_msg)
             return True
         elif part in current_inspector.relationships:
             if is_last_part:
-                raise ValueError(
+                error_msg = (
                     f"The path '{path}' cannot end in a relationship. It must point to a column (e.g. '{path}.id')."
                 )
+                if errors is not None:
+                    errors.append({"loc": (path,), "msg": error_msg, "type": "value_error"})
+                    return False
+                else:
+                    raise ValueError(error_msg)
             current_model = current_inspector.relationships[part].mapper.class_
         else:
-            raise ValueError(
-                f"The field or relationship '{part}' does not exist in the model '{current_model.__name__}' for the path '{path}'."
-            )
+            error_msg = f"The field or relationship '{part}' does not exist in the model '{current_model.__name__}' for the path '{path}'."
+            if errors is not None:
+                errors.append({"loc": (path,), "msg": error_msg, "type": "value_error"})
+                return False
+            else:
+                raise ValueError(error_msg)
     return False
 
 
-def _recursive_validate_keys(filter_data: dict[str, Any], sqla_model: type[DeclarativeBase], allowed_fields: list[FieldInfo] | None = None):
+def _recursive_validate_keys(
+    filter_data: dict[str, Any],
+    sqla_model: type[DeclarativeBase],
+    allowed_fields: list[FieldInfo] | None = None,
+    errors: list[dict] | None = None,
+) -> list[dict]:
+    """Validates filter keys recursively and returns a list of error objects."""
+    if is_top_level_call := errors is None:
+        errors = []
+
     if not isinstance(filter_data, dict):
-        raise ValueError("Each filter clause must be a dictionary.")
+        errors.append({"loc": (), "msg": "Each filter clause must be a dictionary.", "type": "dict_type"})
+        return
 
     for key, value in filter_data.items():
         if key in LOGICAL_OPERATORS:
             if key in {Operator.AND, Operator.OR}:
                 if not isinstance(value, list):
-                    raise ValueError(f"The value for the operator '{key}' must be a list.")
+                    errors.append(
+                        {
+                            "loc": (key,),
+                            "msg": f"The value for the operator '{key}' must be a list.",
+                            "type": "list_type",
+                        }
+                    )
+                    continue
                 for sub_filter in value:
-                    _recursive_validate_keys(sub_filter, sqla_model)
+                    _recursive_validate_keys(sub_filter, sqla_model, allowed_fields, errors)
             elif key == Operator.NOT:
                 if not isinstance(value, dict):
-                    raise ValueError(f"The value for the operator '{key}' must be a dictionary.")
-                _recursive_validate_keys(value, sqla_model)
+                    errors.append(
+                        {
+                            "loc": (key,),
+                            "msg": f"The value for the operator '{key}' must be a dictionary.",
+                            "type": "dict_type",
+                        }
+                    )
+                    continue
+                _recursive_validate_keys(value, sqla_model, allowed_fields, errors)
         else:
             field_info = None
             if allowed_fields is not None:
                 field_info = next((f for f in allowed_fields if f.name == key), None)
                 if field_info is None:
-                    raise ValueError(f"The field '{key}' is not allowed for filtering.")
+                    errors.append(
+                        {
+                            "loc": (key,),
+                            "msg": f"The field '{key}' is not allowed for filtering.",
+                            "type": "value_error",
+                        }
+                    )
+                    continue
 
-            _validate_field_path(sqla_model, key)
+            # Validate field path and collect any errors
+            _validate_field_path(sqla_model, key, errors)
+
             if not isinstance(value, dict):
-                raise ValueError(
-                    f"The value for the field '{key}' must be a comparison dictionary (e.g. {{'$eq': 'value'}})."
+                errors.append(
+                    {
+                        "loc": (key,),
+                        "msg": f"The value for the field '{key}' must be a comparison dictionary (e.g. {{'$eq': 'value'}}).",
+                        "type": "dict_type",
+                    }
                 )
+                continue
 
             if not value:
-                raise ValueError(f"The comparison object for '{key}' cannot be empty.")
+                errors.append(
+                    {"loc": (key,), "msg": f"The comparison object for '{key}' cannot be empty.", "type": "value_error"}
+                )
+                continue
 
             for comp_op_str, comp_val in value.items():
                 try:
@@ -84,15 +137,37 @@ def _recursive_validate_keys(filter_data: dict[str, Any], sqla_model: type[Decla
                     if comp_op not in COMPARISON_OPERATORS:
                         raise ValueError()
                 except ValueError:
-                    raise ValueError(f"'{comp_op_str}' is not a valid comparison operator for the field '{key}'.")
+                    errors.append(
+                        {
+                            "loc": (key, comp_op_str),
+                            "msg": f"'{comp_op_str}' is not a valid comparison operator for the field '{key}'.",
+                            "type": "value_error",
+                        }
+                    )
+                    continue
 
                 if field_info and comp_op not in {field.name for field in field_info.operators}:
-                    raise ValueError(f"'{comp_op_str}' is not a valid comparison operator for the field '{key}'.")
+                    errors.append(
+                        {
+                            "loc": (key, comp_op_str),
+                            "msg": f"'{comp_op_str}' is not a valid comparison operator for the field '{key}'.",
+                            "type": "value_error",
+                        }
+                    )
+                    continue
+
                 if comp_op in LIST_BASED_OPERATORS:
                     if not isinstance(comp_val, list):
-                        raise ValueError(
-                            f"The value for the operator '{comp_op}' in the field '{key}' must be a list."
+                        errors.append(
+                            {
+                                "loc": (key, comp_op_str),
+                                "msg": f"The value for the operator '{comp_op}' in the field '{key}' must be a list.",
+                                "type": "list_type",
+                            }
                         )
+
+    # Return the list of errors (empty if no errors found)
+    return errors if is_top_level_call else []
 
 
 ComparisonValue: TypeAlias = str | int | float | bool | list
@@ -108,12 +183,17 @@ class FilterSchema(RootModel[FilterDict]):
         allowed_fields = info.context.get("allowed_fields")
         if not sqla_model:
             raise ValueError("The SQLAlchemy model was not found in the validation context.")
-        try:
-            if not isinstance(data, dict):
-                raise ValueError("The main filter clause must be a dictionary.")
-            _recursive_validate_keys(data, sqla_model, allowed_fields)
-        except ValueError as e:
-            raise ValueError(str(e)) from e
+
+        if not isinstance(data, dict):
+            raise ValueError("The main filter clause must be a dictionary.")
+
+        # Get validation errors as objects
+        validation_errors = _recursive_validate_keys(data, sqla_model, allowed_fields)
+
+        # If there are errors, raise ValidationError with the structured errors
+        if validation_errors:
+            raise ValidationError.from_exception_data(title="FilterValidation", line_errors=validation_errors)
+
         return data
 
 
