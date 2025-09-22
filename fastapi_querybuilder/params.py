@@ -12,6 +12,7 @@ from pydantic import (
     field_validator,
     model_validator,
 )
+from pydantic_core import InitErrorDetails
 from sqlalchemy import inspect
 from sqlalchemy.orm import DeclarativeBase
 
@@ -33,7 +34,7 @@ def _validate_field_path(model: type[DeclarativeBase], path: str, errors: list[d
             if not is_last_part:
                 error_msg = f"The field '{part}' in the path '{path}' is a column and cannot have more relationships."
                 if errors is not None:
-                    errors.append({"loc": (path,), "msg": error_msg, "type": "value_error"})
+                    errors.append(InitErrorDetails(loc=(path,), type="value_error", ctx={"error": error_msg}))
                     return False
                 else:
                     raise ValueError(error_msg)
@@ -44,7 +45,7 @@ def _validate_field_path(model: type[DeclarativeBase], path: str, errors: list[d
                     f"The path '{path}' cannot end in a relationship. It must point to a column (e.g. '{path}.id')."
                 )
                 if errors is not None:
-                    errors.append({"loc": (path,), "msg": error_msg, "type": "value_error"})
+                    errors.append(InitErrorDetails(loc=(path,), type="value_error", ctx={"error": error_msg}))
                     return False
                 else:
                     raise ValueError(error_msg)
@@ -52,7 +53,7 @@ def _validate_field_path(model: type[DeclarativeBase], path: str, errors: list[d
         else:
             error_msg = f"The field or relationship '{part}' does not exist in the model '{current_model.__name__}' for the path '{path}'."
             if errors is not None:
-                errors.append({"loc": (path,), "msg": error_msg, "type": "value_error"})
+                errors.append(InitErrorDetails(loc=(path,), type="value_error", ctx={"error": error_msg}))
                 return False
             else:
                 raise ValueError(error_msg)
@@ -63,14 +64,16 @@ def _recursive_validate_keys(
     filter_data: dict[str, Any],
     sqla_model: type[DeclarativeBase],
     allowed_fields: list[FieldInfo] | None = None,
-    errors: list[dict] | None = None,
-) -> list[dict]:
+    errors: list[InitErrorDetails] | None = None,
+) -> list[InitErrorDetails]:
     """Validates filter keys recursively and returns a list of error objects."""
     if is_top_level_call := errors is None:
         errors = []
 
     if not isinstance(filter_data, dict):
-        errors.append({"loc": (), "msg": "Each filter clause must be a dictionary.", "type": "dict_type"})
+        errors.append(
+            InitErrorDetails(loc=(), ctx={"error": "Each filter clause must be a dictionary."}, type="dict_type")
+        )
         return
 
     for key, value in filter_data.items():
@@ -78,11 +81,11 @@ def _recursive_validate_keys(
             if key in {Operator.AND, Operator.OR}:
                 if not isinstance(value, list):
                     errors.append(
-                        {
-                            "loc": (key,),
-                            "msg": f"The value for the operator '{key}' must be a list.",
-                            "type": "list_type",
-                        }
+                        InitErrorDetails(
+                            loc=(key,),
+                            ctx={"error": f"The value for the operator '{key}' must be a list."},
+                            type="list_type",
+                        )
                     )
                     continue
                 for sub_filter in value:
@@ -90,11 +93,11 @@ def _recursive_validate_keys(
             elif key == Operator.NOT:
                 if not isinstance(value, dict):
                     errors.append(
-                        {
-                            "loc": (key,),
-                            "msg": f"The value for the operator '{key}' must be a dictionary.",
-                            "type": "dict_type",
-                        }
+                        InitErrorDetails(
+                            loc=(key,),
+                            ctx={"error": f"The value for the operator '{key}' must be a dictionary."},
+                            type="dict_type",
+                        )
                     )
                     continue
                 _recursive_validate_keys(value, sqla_model, allowed_fields, errors)
@@ -104,11 +107,11 @@ def _recursive_validate_keys(
                 field_info = next((f for f in allowed_fields if f.name == key), None)
                 if field_info is None:
                     errors.append(
-                        {
-                            "loc": (key,),
-                            "msg": f"The field '{key}' is not allowed for filtering.",
-                            "type": "value_error",
-                        }
+                        InitErrorDetails(
+                            loc=(key,),
+                            ctx={"error": f"The field '{key}' is not allowed for filtering."},
+                            type="value_error",
+                        )
                     )
                     continue
 
@@ -117,17 +120,23 @@ def _recursive_validate_keys(
 
             if not isinstance(value, dict):
                 errors.append(
-                    {
-                        "loc": (key,),
-                        "msg": f"The value for the field '{key}' must be a comparison dictionary (e.g. {{'$eq': 'value'}}).",
-                        "type": "dict_type",
-                    }
+                    InitErrorDetails(
+                        loc=(key,),
+                        ctx={
+                            "error": f"The value for the field '{key}' must be a comparison dictionary (e.g. {{'$eq': 'value'}})."
+                        },
+                        type="dict_type",
+                    )
                 )
                 continue
 
             if not value:
                 errors.append(
-                    {"loc": (key,), "msg": f"The comparison object for '{key}' cannot be empty.", "type": "value_error"}
+                    InitErrorDetails(
+                        loc=(key,),
+                        ctx={"error": f"The comparison object for '{key}' cannot be empty."},
+                        type="value_error",
+                    )
                 )
                 continue
 
@@ -138,32 +147,34 @@ def _recursive_validate_keys(
                         raise ValueError()
                 except ValueError:
                     errors.append(
-                        {
-                            "loc": (key, comp_op_str),
-                            "msg": f"'{comp_op_str}' is not a valid comparison operator for the field '{key}'.",
-                            "type": "value_error",
-                        }
+                        InitErrorDetails(
+                            loc=(key, comp_op_str),
+                            ctx={"error": f"'{comp_op_str}' is not a valid comparison operator for the field '{key}'."},
+                            type="value_error",
+                        )
                     )
                     continue
 
                 if field_info and comp_op not in {field.name for field in field_info.operators}:
                     errors.append(
-                        {
-                            "loc": (key, comp_op_str),
-                            "msg": f"'{comp_op_str}' is not a valid comparison operator for the field '{key}'.",
-                            "type": "value_error",
-                        }
+                        InitErrorDetails(
+                            loc=(key, comp_op_str),
+                            ctx={"error": f"'{comp_op_str}' is not a valid comparison operator for the field '{key}'."},
+                            type="value_error",
+                        )
                     )
                     continue
 
                 if comp_op in LIST_BASED_OPERATORS:
                     if not isinstance(comp_val, list):
                         errors.append(
-                            {
-                                "loc": (key, comp_op_str),
-                                "msg": f"The value for the operator '{comp_op}' in the field '{key}' must be a list.",
-                                "type": "list_type",
-                            }
+                            InitErrorDetails(
+                                loc=(key, comp_op_str),
+                                ctx={
+                                    "error": f"The value for the operator '{comp_op}' in the field '{key}' must be a list."
+                                },
+                                type="list_type",
+                            )
                         )
 
     # Return the list of errors (empty if no errors found)
