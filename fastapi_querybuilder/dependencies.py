@@ -12,7 +12,7 @@ from .builder import build_query
 def _parse_errors(e: ValidationError):
     # Ensure the error structure is compatible with FastAPI's expected format
     return [
-        {"type": error.type, "loc": error.loc, "msg": error.msg}
+        {"type": error["type"], "loc": error["loc"], "msg": error["msg"]}
         for error in e.errors(include_context=False, include_url=False, include_input=False)
     ]
 
