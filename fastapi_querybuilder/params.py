@@ -223,7 +223,9 @@ class QueryParams(BaseModel):
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
         config = cls.model_config.get("schema_config")
-        if config and isinstance(config, SchemaConfig):
+        if not config:
+            config = SchemaConfig(model=cls.model_config.get("sqla_model"))
+        if isinstance(config, SchemaConfig):
             generator = SchemaGenerator(config)
             cls.SCHEMA = generator.generate()
 

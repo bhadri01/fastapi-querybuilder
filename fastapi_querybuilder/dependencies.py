@@ -46,7 +46,7 @@ def filter_params(cls: type[QueryParams]):
 def QueryBuilder(query_params: type[QueryParams] = QueryParams):
     def wrapper(request: Request, params: QueryParams = Depends(filter_params(query_params))):
         schema_config: SchemaConfig = query_params.model_config.get("schema_config")
-        model = query_params.model_config.get("model")
+        model = query_params.model_config.get("sqla_model")
         return build_query(
             model or schema_config.model,
             params,
