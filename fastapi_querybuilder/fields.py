@@ -1,10 +1,11 @@
+from collections.abc import Sequence
 from dataclasses import dataclass
 from enum import StrEnum
 from typing import Optional
 
 from pydantic import BaseModel, Field
 from sqlalchemy import ColumnElement, inspect
-from sqlalchemy.orm import DeclarativeMeta
+from sqlalchemy.orm import DeclarativeBase, DeclarativeMeta
 from sqlalchemy.types import Boolean, Date, DateTime, Float, Integer, Numeric, String, Text
 
 from .operators import Operator
@@ -29,9 +30,9 @@ class QueryParamsSchemaResponse(BaseModel):
 
 @dataclass
 class SchemaConfig:
-    model: DeclarativeMeta  # Should be a SQLAlchemy DeclarativeBase subclass
-    only: Optional[list[str]] = None
-    exclude: Optional[list[str]] = None
+    model: type[DeclarativeMeta | DeclarativeBase]  # Should be a SQLAlchemy DeclarativeBase subclass
+    only: Optional[Sequence[str]] = None
+    exclude: Optional[Sequence[str]] = None
 
 
 class ColumnTypeCategory(StrEnum):
