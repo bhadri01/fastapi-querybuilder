@@ -4,6 +4,7 @@ import orjson
 from fastapi import Query
 from pydantic import (
     BaseModel,
+    ConfigDict,
     Field,
     RootModel,
     TypeAdapter,
@@ -14,7 +15,7 @@ from pydantic import (
 )
 from pydantic_core import InitErrorDetails
 from sqlalchemy import inspect
-from sqlalchemy.orm import DeclarativeBase
+from sqlalchemy.orm import DeclarativeBase, DeclarativeMeta
 
 from .fields import FieldInfo, QueryParamsSchemaResponse, SchemaConfig, SchemaGenerator
 from .operators import Operator
@@ -211,6 +212,11 @@ class FilterSchema(RootModel[FilterDict]):
 class SortField(BaseModel):
     field: str = Field(..., description="The field name to sort by.", min_length=1)
     direction: Literal["asc", "desc"] | None = Field(default=None)
+
+
+class QueryParamsConfigDict(ConfigDict, total=False):
+    schema_config: Optional[SchemaConfig]
+    sqla_model: Optional[type[DeclarativeMeta | DeclarativeBase]]
 
 
 class QueryParams(BaseModel):
