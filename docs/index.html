@@ -4,25 +4,31 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="FastAPI QueryBuilder - Powerful, flexible query building for FastAPI and SQLAlchemy with advanced filtering, sorting, and searching capabilities.">
+    <meta name="description"
+        content="FastAPI QueryBuilder - Powerful, flexible query building for FastAPI and SQLAlchemy with advanced filtering, sorting, and searching capabilities.">
     <meta name="keywords" content="fastapi, sqlalchemy, query builder, filtering, sorting, search, pagination, python">
     <title>FastAPI QueryBuilder - Advanced Query Building for FastAPI</title>
-    
+
     <!-- Favicon -->
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔍</text></svg>">
-    
+    <link rel="icon"
+        href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔍</text></svg>">
+
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500;600&display=swap" rel="stylesheet">
-    
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500;600&display=swap"
+        rel="stylesheet">
+
     <!-- Icons -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
-    
+
     <!-- Syntax Highlighting -->
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet" id="prism-dark">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism.min.css" rel="stylesheet" id="prism-light" disabled>
-    
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet"
+        id="prism-dark">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism.min.css" rel="stylesheet"
+        id="prism-light" disabled>
+
     <!-- Styles -->
     <link rel="stylesheet" href="./style.css">
 </head>
@@ -54,7 +60,8 @@
                     <i class="fas fa-sun sun-icon"></i>
                     <i class="fas fa-moon moon-icon"></i>
                 </button>
-                <a href="https://github.com/bhadri01/fastapi-querybuilder" target="_blank" class="github-link" aria-label="GitHub repository">
+                <a href="https://github.com/bhadri01/fastapi-querybuilder" target="_blank" class="github-link"
+                    aria-label="GitHub repository">
                     <i class="fab fa-github"></i>
                 </a>
             </div>
@@ -68,7 +75,7 @@
                 <i class="fas fa-search"></i>
                 <input type="text" placeholder="Search docs..." id="search-input">
             </div>
-            
+
             <nav class="sidebar-nav">
                 <div class="nav-section">
                     <h3>Getting Started</h3>
@@ -78,7 +85,7 @@
                         <li><a href="#requirements"><i class="fas fa-list-check"></i> Requirements</a></li>
                     </ul>
                 </div>
-                
+
                 <div class="nav-section">
                     <h3>Core Features</h3>
                     <ul>
@@ -88,7 +95,7 @@
                         <li><a href="#pagination"><i class="fas fa-book-open"></i> Pagination</a></li>
                     </ul>
                 </div>
-                
+
                 <div class="nav-section">
                     <h3>Operators</h3>
                     <ul>
@@ -98,7 +105,7 @@
                         <li><a href="#null-ops"><i class="fas fa-ban"></i> Null/Empty</a></li>
                     </ul>
                 </div>
-                
+
                 <div class="nav-section">
                     <h3>Advanced</h3>
                     <ul>
@@ -107,13 +114,15 @@
                         <li><a href="#date-handling"><i class="fas fa-calendar"></i> Date Handling</a></li>
                     </ul>
                 </div>
-                
+
                 <div class="nav-section">
                     <h3>Resources</h3>
                     <ul>
                         <li><a href="#examples"><i class="fas fa-code"></i> Examples</a></li>
-                        <li><a href="https://github.com/bhadri01/fastapi-querybuilder" target="_blank"><i class="fab fa-github"></i> GitHub</a></li>
-                        <li><a href="https://pypi.org/project/fastapi-querybuilder/" target="_blank"><i class="fab fa-python"></i> PyPI</a></li>
+                        <li><a href="https://github.com/bhadri01/fastapi-querybuilder" target="_blank"><i
+                                    class="fab fa-github"></i> GitHub</a></li>
+                        <li><a href="https://pypi.org/project/fastapi-querybuilder/" target="_blank"><i
+                                    class="fab fa-python"></i> PyPI</a></li>
                     </ul>
                 </div>
             </nav>
@@ -130,13 +139,15 @@
                     <span>Open Source</span>
                 </div>
                 <h1 class="hero-title">FastAPI QueryBuilder</h1>
-                <p class="hero-subtitle">Powerful, flexible query building for FastAPI and SQLAlchemy. Add advanced filtering, sorting, and searching to your API endpoints with minimal code.</p>
+                <p class="hero-subtitle">Powerful, flexible query building for FastAPI and SQLAlchemy. Add advanced
+                    filtering, sorting, and searching to your API endpoints with minimal code.</p>
                 <div class="hero-actions">
                     <a href="#installation" class="btn btn-primary">
                         <i class="fas fa-rocket"></i>
                         Get Started
                     </a>
-                    <a href="https://github.com/bhadri01/fastapi-querybuilder" target="_blank" class="btn btn-secondary">
+                    <a href="https://github.com/bhadri01/fastapi-querybuilder" target="_blank"
+                        class="btn btn-secondary">
                         <i class="fab fa-github"></i>
                         View on GitHub
                     </a>
@@ -168,7 +179,7 @@
                     Installation
                 </h2>
                 <p class="section-intro">Install FastAPI QueryBuilder using pip. It's that simple!</p>
-                
+
                 <div class="code-block">
                     <div class="code-header">
                         <span class="code-lang">bash</span>
@@ -201,7 +212,7 @@
                     Quick Start
                 </h2>
                 <p class="section-intro">Get up and running in less than a minute with this simple example.</p>
-                
+
                 <div class="code-block">
                     <div class="code-header">
                         <span class="code-lang">python</span>
@@ -448,7 +459,7 @@ add_pagination(app)</code></pre>
                 <!-- Comparison Operators -->
                 <div id="comparison-ops" class="subsection">
                     <h3 class="subsection-title">Comparison Operators</h3>
-                    
+
                     <div class="operators-grid">
                         <div class="operator-card">
                             <div class="operator-header">
@@ -535,7 +546,7 @@ add_pagination(app)</code></pre>
                 <!-- String Operators -->
                 <div id="string-ops" class="subsection">
                     <h3 class="subsection-title">String Operators</h3>
-                    
+
                     <div class="operators-grid">
                         <div class="operator-card">
                             <div class="operator-header">
@@ -582,7 +593,7 @@ add_pagination(app)</code></pre>
                 <!-- Null Operators -->
                 <div id="null-ops" class="subsection">
                     <h3 class="subsection-title">Null/Empty Operators</h3>
-                    
+
                     <div class="operators-grid">
                         <div class="operator-card">
                             <div class="operator-header">
@@ -609,7 +620,7 @@ add_pagination(app)</code></pre>
                 <!-- Logical Operators -->
                 <div id="logical-ops" class="subsection">
                     <h3 class="subsection-title">Logical Operators</h3>
-                    
+
                     <div class="operators-grid">
                         <div class="operator-card">
                             <div class="operator-header">
@@ -628,7 +639,8 @@ add_pagination(app)</code></pre>
                             </div>
                             <p>At least one condition must be true</p>
                             <code>{"$or": [{"name": {"$contains": "john"}}, {"email": {"$contains": "john"}}]}</code>
-                            <div class="operator-sql">SQL: <code>name ILIKE '%john%' OR email ILIKE '%john%'</code></div>
+                            <div class="operator-sql">SQL: <code>name ILIKE '%john%' OR email ILIKE '%john%'</code>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -667,7 +679,8 @@ add_pagination(app)</code></pre>
                             <i class="fas fa-lightbulb"></i>
                             <h4>Tip</h4>
                         </div>
-                        <p>You can nest relationships to any depth. QueryBuilder automatically creates the necessary joins.</p>
+                        <p>You can nest relationships to any depth. QueryBuilder automatically creates the necessary
+                            joins.</p>
                     </div>
                 </div>
 
@@ -677,7 +690,8 @@ add_pagination(app)</code></pre>
                         <i class="fas fa-trash-undo"></i>
                         Soft Delete Support
                     </h3>
-                    <p>Automatically excludes soft-deleted records when your model has a <code>deleted_at</code> field.</p>
+                    <p>Automatically excludes soft-deleted records when your model has a <code>deleted_at</code> field.
+                    </p>
 
                     <div class="code-block">
                         <div class="code-header">
@@ -827,7 +841,8 @@ add_pagination(app)</code></pre>
                             <img src="https://img.shields.io/pypi/v/fastapi-querybuilder.svg" alt="PyPI version">
                         </a>
                         <a href="https://pepy.tech/projects/fastapi-querybuilder" target="_blank">
-                            <img src="https://static.pepy.tech/personalized-badge/fastapi-querybuilder?period=total&units=international_system&left_color=gray&right_color=green&left_text=downloads" alt="Downloads">
+                            <img src="https://static.pepy.tech/personalized-badge/fastapi-querybuilder?period=total&units=international_system&left_color=gray&right_color=green&left_text=downloads"
+                                alt="Downloads">
                         </a>
                     </div>
                 </div>
@@ -845,21 +860,26 @@ add_pagination(app)</code></pre>
                     <ul>
                         <li><a href="https://github.com/bhadri01/fastapi-querybuilder" target="_blank">GitHub</a></li>
                         <li><a href="https://pypi.org/project/fastapi-querybuilder/" target="_blank">PyPI</a></li>
-                        <li><a href="https://github.com/bhadri01/fastapi-querybuilder/issues" target="_blank">Issues</a></li>
-                        <li><a href="https://github.com/bhadri01/fastapi-querybuilder/discussions" target="_blank">Discussions</a></li>
+                        <li><a href="https://github.com/bhadri01/fastapi-querybuilder/issues" target="_blank">Issues</a>
+                        </li>
+                        <li><a href="https://github.com/bhadri01/fastapi-querybuilder/discussions"
+                                target="_blank">Discussions</a></li>
                     </ul>
                 </div>
                 <div class="footer-section">
                     <h4>Community</h4>
                     <ul>
                         <li><a href="#examples">Examples</a></li>
-                        <li><a href="https://github.com/bhadri01/fastapi-querybuilder/blob/main/README.md" target="_blank">Contributing</a></li>
-                        <li><a href="https://github.com/bhadri01/fastapi-querybuilder/blob/main/LICENSE" target="_blank">License (MIT)</a></li>
+                        <li><a href="https://github.com/bhadri01/fastapi-querybuilder/blob/main/README.md"
+                                target="_blank">Contributing</a></li>
+                        <li><a href="https://github.com/bhadri01/fastapi-querybuilder/blob/main/LICENSE"
+                                target="_blank">License (MIT)</a></li>
                     </ul>
                 </div>
             </div>
             <div class="footer-bottom">
-                <p>&copy; 2024 FastAPI QueryBuilder. Built with <i class="fas fa-heart"></i> for the FastAPI community.</p>
+                <p>&copy; 2024 FastAPI QueryBuilder. Built with <i class="fas fa-heart"></i> for the FastAPI community.
+                </p>
             </div>
         </div>
     </footer>
@@ -871,7 +891,8 @@ add_pagination(app)</code></pre>
 
     <!-- Scripts -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-core.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/autoloader/prism-autoloader.min.js"></script>
+    <script
+        src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/autoloader/prism-autoloader.min.js"></script>
     <script src="./script.js"></script>
 </body>
 
