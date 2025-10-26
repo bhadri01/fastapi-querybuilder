@@ -11,6 +11,30 @@ class StatusEnum(str, Enum):
 
 
 # -------------------
+# Department Schemas
+# -------------------
+
+class DepartmentBase(BaseModel):
+    name: str
+    description: Optional[str] = None
+
+
+class DepartmentCreate(DepartmentBase):
+    pass
+
+
+class DepartmentUpdate(DepartmentBase):
+    pass
+
+
+class DepartmentResponse(DepartmentBase):
+    id: int
+
+    class Config:
+        from_attributes = True
+
+
+# -------------------
 # Role Schemas
 # -------------------
 
@@ -19,15 +43,16 @@ class RoleBase(BaseModel):
 
 
 class RoleCreate(RoleBase):
-    pass
+    department_id: int
 
 
 class RoleUpdate(RoleBase):
-    pass
+    department_id: Optional[int] = None
 
 
 class RoleResponse(RoleBase):
     id: int
+    department: Optional[DepartmentResponse]
 
     class Config:
         from_attributes = True
