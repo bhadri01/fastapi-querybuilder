@@ -28,13 +28,26 @@ async def get_db():
 
 # ───── Models ────────────────────────────────────
 
+class Department(Base):
+    __tablename__ = "departments"
+
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    name: Mapped[str] = mapped_column(String, unique=True, nullable=False)
+    description: Mapped[str] = mapped_column(String, nullable=True)
+
+    roles: Mapped[list["Role"]] = relationship("Role", back_populates="department")
+
+
 class Role(Base):
     __tablename__ = "roles"
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     name: Mapped[str] = mapped_column(String, unique=True, nullable=False)
+    department_id: Mapped[int] = mapped_column(ForeignKey("departments.id"))
 
     users: Mapped[list["User"]] = relationship("User", back_populates="role")
+    department: Mapped["Department"] = relationship(
+        "Department", back_populates="roles", lazy="selectin")
 
 
 class User(Base):
@@ -66,12 +79,22 @@ async def lifespan(_: FastAPI):
         await conn.run_sync(Base.metadata.create_all)
 
     async with SessionLocal() as session:
-        result = await session.execute(select(Role))
+        result = await session.execute(select(Department))
         if not result.scalars().first():
-            admin = Role(name="admin")
-            user = Role(name="user")
-            manager = Role(name="manager")
-            session.add_all([admin, user, manager])
+            # Create departments
+            engineering = Department(name="Engineering", description="Software development and engineering")
+            hr = Department(name="Human Resources", description="People and culture management")
+            sales = Department(name="Sales", description="Business development and sales")
+            session.add_all([engineering, hr, sales])
+            await session.commit()
+
+            # Create roles with department assignments
+            admin = Role(name="admin", department=engineering)
+            user = Role(name="user", department=hr)
+            manager = Role(name="manager", department=sales)
+            developer = Role(name="developer", department=engineering)
+            hr_specialist = Role(name="hr_specialist", department=hr)
+            session.add_all([admin, user, manager, developer, hr_specialist])
             await session.commit()
 
             session.add_all([
@@ -81,9 +104,9 @@ async def lifespan(_: FastAPI):
                      status=StatusEnum.INACTIVE, age=25, is_active=False),
                 User(name="Carol", email="carol@example.com", role=manager,
                      status=StatusEnum.SUSPENDED, age=40, is_active=False),
-                User(name="Dave", email="dave@example.com", role=admin,
+                User(name="Dave", email="dave@example.com", role=developer,
                      status=StatusEnum.ACTIVE, age=35, is_active=True),
-                User(name="Eve", email="eve@example.com", role=user,
+                User(name="Eve", email="eve@example.com", role=hr_specialist,
                      status=StatusEnum.ACTIVE, age=28, is_active=True),
             ])
             await session.commit()
