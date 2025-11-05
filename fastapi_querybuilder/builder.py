@@ -71,11 +71,16 @@ def _apply_recursive_search(
     search_expr_list: list, 
     globally_processed_models: set,
     ancestry: frozenset, # A set of models in the path *above* this call
+    joined_tables: set = None, # Track which tables have been joined globally
 ):
     """
     Recursively applies search logic to a model and its relationships,
-    preventing circular recursion.
+    preventing circular recursion and duplicate joins.
     """
+    
+    # Initialize joined_tables set on first call
+    if joined_tables is None:
+        joined_tables = set()
     
     # --- 1. RECURSION PREVENTION (Top-level) ---
     # This check is technically redundant with the
@@ -102,12 +107,29 @@ def _apply_recursive_search(
         
         related_model_class = rel.mapper.class_
         
-        # --- THE FIX ---
+        # --- CIRCULAR REFERENCE CHECK ---
         # Before joining, check if the model we are about to
         # join is already in our ancestry. If it is,
         # we are following a back-reference and must skip it.
         if related_model_class in ancestry:
             continue # Skip this relationship
+        
+        # --- DUPLICATE JOIN CHECK ---
+        # Check if we've already joined to this related table
+        # This prevents the "table name specified more than once" error
+        # We use the related table name as the key since that's what 
+        # SQL cares about when checking for duplicate table references
+        related_table_name = related_model_class.__tablename__
+        if related_table_name in joined_tables:
+            # We've already joined this table from another path
+            # Add search expressions for this model if not done yet
+            # but skip the join to avoid duplicates
+            if related_model_class not in globally_processed_models:
+                search_expr_list.extend(
+                    _get_search_expressions_for_model(related_model_class, search_term)
+                )
+                globally_processed_models.add(related_model_class)
+            continue # Skip this join
         # --- END FIX ---
 
         # Get the relationship attribute from the current model
@@ -115,6 +137,7 @@ def _apply_recursive_search(
         
         # Add the JOIN
         query = query.join(rel_attr, isouter=True)
+        joined_tables.add(related_table_name)
 
         # 4. Recurse into the related model
         query = _apply_recursive_search(
@@ -123,7 +146,8 @@ def _apply_recursive_search(
             search_term=search_term,
             search_expr_list=search_expr_list,
             globally_processed_models=globally_processed_models,
-            ancestry=new_ancestry # Pass the new ancestry down
+            ancestry=new_ancestry, # Pass the new ancestry down
+            joined_tables=joined_tables, # Pass the joined tables set
         )
     
     # Return the modified query
