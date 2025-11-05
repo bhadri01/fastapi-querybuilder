@@ -1,7 +1,6 @@
 # FastAPI QueryBuilder
 
-[![PyPI version](https://img.shields.io/pypi/v/fastapi-querybuilder.svg)](https://pypi.org/project/fastapi-querybuilder/)  
-[![PyPI Downloads](https://static.pepy.tech/personalized-badge/fastapi-querybuilder?period=total&units=INTERNATIONAL_SYSTEM&left_color=GRAY&right_color=GREEN&left_text=downloads)](https://pepy.tech/projects/fastapi-querybuilder)
+[![PyPI version](https://img.shields.io/pypi/v/fastapi-querybuilder.svg)](https://pypi.org/project/fastapi-querybuilder/)  [![PyPI Downloads](https://static.pepy.tech/personalized-badge/fastapi-querybuilder?period=total&units=INTERNATIONAL_SYSTEM&left_color=GRAY&right_color=GREEN&left_text=downloads)](https://pepy.tech/projects/fastapi-querybuilder)
 
 **Python 3.10+** | **License: MIT**
 
