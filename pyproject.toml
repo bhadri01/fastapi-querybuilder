@@ -21,13 +21,14 @@ classifiers = [
 
 [tool.poetry.dependencies]
 python = ">=3.11,<4.0"
-fastapi = ">=0.115"
-uvicorn = ">=0.30"
-sqlalchemy = ">=2.0"
-fastapi_pagination = ">=0.13.2"
-aiosqlite = ">=0.21.0"
-poetry = ">=2.1.4"
-orjson = "^3.11.3"
+fastapi = ">=0.128.8"
+uvicorn = ">=0.40.0"
+pydantic = ">=2.12.5"
+sqlalchemy = ">=2.0.46"
+fastapi_pagination = ">=0.15.10"
+aiosqlite = ">=0.22.1"
+poetry = ">=2.3.2"
+orjson = ">=3.11.7"
 
 [tool.coverage.paths]
 source = ["fastapi_querybuilder"]

@@ -22,19 +22,19 @@ def filter_params(cls: type[QueryParams]):
         filters: str | None = Query(
             default=None,
             description="Filtro en formato de string JSON.",
-            example='{"$and": [{"active": {"$eq": true}}, {"role": {"$eq": "admin"}}, {"age": {"$gte": 30, "$lt": 50}}]}',
+            examples=['{"$and": [{"active": {"$eq": true}}, {"role": {"$eq": "admin"}}, {"age": {"$gte": 30, "$lt": 50}}]}'],
         ),
         sort: str | None = Query(
             default=None,
             description="e.g. name:asc,phone:desc or user.email:desc",
-            example="name:asc,age:desc",
+            examples=["name:asc,age:desc"],
         ),
         search: str | None = Query(
             default=None,
             description="Una cadena para búsqueda global a través de campos de cadena.",
-            example="developer",
+            examples=["developer"],
         ),
-    ) -> type[QueryParams]:
+    ) -> QueryParams:
         try:
             return cls(filters=filters, sort=sort, search=search)
         except ValidationError as e:
