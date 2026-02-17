@@ -1,6 +1,8 @@
 from sqlalchemy import cast, select, or_, asc, desc, String, Enum, inspect
+from sqlalchemy.orm import RelationshipProperty
 from fastapi import HTTPException
-from .core import parse_filter_query, parse_filters, resolve_and_join_column
+from .core import parse_filter_query, parse_filters, resolve_and_join_column, resolve_and_join_column_with_paths
+from typing import List, Tuple, Set, Dict, Any
 
 
 def build_query(cls, params):
@@ -16,29 +18,47 @@ def build_query(cls, params):
         if filter_expr is not None:
             query = query.where(filter_expr)
 
-    # Search - NOW RECURSIVE (with loop prevention)
+    # Search - DEFAULT: Top-level model only, or EXPLICIT FIELDS
     if params.search:
         search_expr = []
         
-        globally_processed_models = set()
-
-        # Call the new recursive helper
-        query = _apply_recursive_search(
-            model_cls=cls,
-            query=query,
-            search_term=params.search,
-            search_expr_list=search_expr,
-            globally_processed_models=globally_processed_models,
-            # Pass a frozenset of models in the *current* recursive path
-            ancestry=frozenset() 
-        )
+        if params.search_fields:
+            # EXPLICIT: Use specified field paths (can include nested relationships)
+            try:
+                parsed_paths = _parse_search_field_paths(params.search_fields)
+                
+                # Validate circular references
+                _check_circular_references(parsed_paths, cls)
+                
+                # Build search expressions for explicit fields
+                search_expr, query = _build_search_for_explicit_fields(
+                    model_cls=cls,
+                    parsed_paths=parsed_paths,
+                    search_term=params.search,
+                    query=query
+                )
+                
+                # Apply DISTINCT only if joins were created (i.e., if any relationship path exists)
+                has_joins = any(len(rel_path) > 0 for rel_path, _ in parsed_paths)
+                if has_joins and search_expr:
+                    query = query.distinct()
+                    
+            except HTTPException:
+                raise
+            except Exception as e:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Error processing search_fields: {str(e)}"
+                )
+        else:
+            # DEFAULT: Search only top-level model columns (no relationships)
+            search_expr = _get_search_expressions_for_model(cls, params.search)
+            
+            # No DISTINCT needed for top-level search (no joins)
+            # No joins are created, so we don't need DISTINCT
 
         if search_expr:
-            # Apply the combined OR conditions from all models
             query = query.where(or_(*search_expr))
-            
-            # Add DISTINCT to avoid duplicates
-            query = query.distinct()
 
     # Sorting
     if params.sort:
@@ -171,6 +191,159 @@ def _get_search_expressions_for_model(model_class, search_term: str):
             if search_term.lower() in ("true", "false"):
                 expressions.append(column == (search_term.lower() == "true"))
     return expressions
+
+
+def _parse_search_field_paths(search_fields_str: str) -> List[Tuple[List[str], str]]:
+    """
+    Parse comma-separated search field paths into structured format.
+    
+    Args:
+        search_fields_str: e.g., "name,email,role.name,role.department.name"
+        
+    Returns:
+        List of tuples: [(relationship_path, column_name), ...]
+        e.g., [([], 'name'), ([], 'email'), (['role'], 'name'), (['role', 'department'], 'name')]
+        
+    Raises:
+        HTTPException(400) if format is invalid
+    """
+    if not search_fields_str or not search_fields_str.strip():
+        return []
+    
+    parsed_paths = []
+    seen_paths = set()  # For deduplication
+    
+    fields = [f.strip() for f in search_fields_str.split(",") if f.strip()]
+    
+    for field in fields:
+        parts = field.split(".")
+        
+        if not parts or not parts[-1]:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid search field path: '{field}' - must contain a column name"
+            )
+        
+        # Last part is the column name, everything else is the relationship path
+        relationship_path = parts[:-1]
+        column_name = parts[-1]
+        
+        # Check for empty parts (e.g., "role..name" or ".name")
+        if any(not part for part in parts):
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid search field path: '{field}' - contains empty parts"
+            )
+        
+        # Deduplicate
+        path_key = (tuple(relationship_path), column_name)
+        if path_key in seen_paths:
+            continue
+        seen_paths.add(path_key)
+        
+        parsed_paths.append((relationship_path, column_name))
+    
+    return parsed_paths
+
+
+def _check_circular_references(parsed_paths: List[Tuple[List[str], str]], root_model: Any) -> None:
+    """
+    Validate that no parsed path contains circular references.
+    
+    Args:
+        parsed_paths: List of (relationship_path, column_name) tuples
+        root_model: Root model class
+        
+    Raises:
+        HTTPException(400) if circular reference detected
+    """
+    for rel_path, col_name in parsed_paths:
+        if not rel_path:
+            continue  # Top-level columns have no circular risk
+        
+        # Traverse the path and collect all models
+        current_model = root_model
+        models_in_path = [root_model]
+        
+        for rel_key in rel_path:
+            rel_attr = getattr(current_model, rel_key, None)
+            
+            if rel_attr is None or not isinstance(rel_attr.property, RelationshipProperty):
+                # Invalid relationship, will be caught later
+                break
+            
+            next_model = rel_attr.property.mapper.class_
+            
+            # Check for circular reference
+            if next_model in models_in_path:
+                path_str = ".".join(rel_path + [col_name])
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Circular reference in search_fields path: '{path_str}' - "
+                    f"Model {next_model.__name__} appears multiple times in traversal path"
+                )
+            
+            models_in_path.append(next_model)
+            current_model = next_model
+
+
+def _build_search_for_explicit_fields(
+    model_cls: Any,
+    parsed_paths: List[Tuple[List[str], str]],
+    search_term: str,
+    query: Any
+) -> Tuple[Any, Any]:
+    """
+    Build search expressions for explicitly specified field paths.
+    
+    Args:
+        model_cls: Root model class
+        parsed_paths: List of (relationship_path, column_name) tuples from _parse_search_field_paths
+        search_term: Search term string
+        query: SQLAlchemy Select query
+        
+    Returns:
+        Tuple of (search_expression_list, modified_query)
+    """
+    search_expressions = []
+    joins = {}  # Use path-aware joins: (rel_path_tuple, model_class) -> alias
+    
+    for rel_path, col_name in parsed_paths:
+        full_path = rel_path + [col_name]
+        
+        try:
+            # Resolve the column with path-aware joining
+            column, query = resolve_and_join_column_with_paths(
+                model_cls,
+                full_path,
+                query,
+                joins
+            )
+            
+            # Generate search expression for the column
+            col_type = column.type
+            
+            if is_enum_column(column):
+                search_expressions.append(cast(column, String).ilike(f"%{search_term}%"))
+            elif is_string_column(column):
+                search_expressions.append(column.ilike(f"%{search_term}%"))
+            elif is_integer_column(column):
+                if search_term.isdigit():
+                    search_expressions.append(column == int(search_term))
+            elif is_boolean_column(column):
+                if search_term.lower() in ("true", "false"):
+                    search_expressions.append(column == (search_term.lower() == "true"))
+            
+        except HTTPException:
+            # Re-raise invalid column/relationship errors
+            raise
+        except Exception as e:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Error resolving search field '{'.'.join(full_path)}': {str(e)}"
+            )
+    
+    return search_expressions, query
 
 
 def is_enum_column(column):

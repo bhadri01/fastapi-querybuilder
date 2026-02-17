@@ -3,7 +3,7 @@
 from fastapi import HTTPException
 from sqlalchemy.orm import RelationshipProperty, aliased
 from sqlalchemy.sql import Select, and_
-from typing import Any, Optional, Dict, Tuple
+from typing import Any, Optional, Dict, Tuple, List
 import json
 from .operators import LOGICAL_OPERATORS, COMPARISON_OPERATORS
 
@@ -32,6 +32,65 @@ def resolve_and_join_column(model, nested_keys: list[str], query: Select, joins:
                 detail=f"Invalid filter key: {'.'.join(nested_keys)}. "
                 f"Could not resolve attribute '{attr}' in model '{current_model.__name__}'."
             )
+    raise HTTPException(
+        status_code=400,
+        detail=f"Could not resolve relationship for {'.'.join(nested_keys)}."
+    )
+
+
+def resolve_and_join_column_with_paths(
+    model: Any,
+    nested_keys: List[str],
+    query: Select,
+    joins: Dict[Tuple[Tuple[str, ...], type], Any]
+) -> Tuple[Any, Select]:
+    """
+    Enhanced version of resolve_and_join_column that supports path-aware joins.
+    
+    This allows multiple joins to the same model if they come via different relationship paths.
+    
+    Args:
+        model: Root model class
+        nested_keys: List of attribute names to traverse (e.g., ['role', 'department', 'name'])
+        query: SQLAlchemy Select query
+        joins: Dictionary with key format: (tuple_of_relationship_keys, model_class) -> alias
+        
+    Returns:
+        Tuple of (column_expression, modified_query)
+    """
+    current_model = model
+    alias = None
+    relationship_path = []  # Track the path of relationship keys traversed
+
+    for i, attr in enumerate(nested_keys):
+        relationship = getattr(current_model, attr, None)
+
+        if relationship is not None and isinstance(relationship.property, RelationshipProperty):
+            related_model = relationship.property.mapper.class_
+            
+            # Create path-aware key: (tuple of rel keys, model class)
+            relationship_path.append(attr)
+            path_key = (tuple(relationship_path), related_model)
+            
+            # Check if we've already joined this relationship path
+            if path_key not in joins:
+                alias = aliased(related_model)
+                joins[path_key] = alias
+                query = query.outerjoin(alias, getattr(current_model, attr))
+            else:
+                alias = joins[path_key]
+
+            current_model = alias
+        else:
+            # This should be the final column attribute
+            if hasattr(current_model, attr):
+                return getattr(current_model, attr), query
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid filter key: {'.'.join(nested_keys)}. "
+                f"Could not resolve attribute '{attr}' in model '{current_model.__name__}'."
+            )
+    
     raise HTTPException(
         status_code=400,
         detail=f"Could not resolve relationship for {'.'.join(nested_keys)}."
