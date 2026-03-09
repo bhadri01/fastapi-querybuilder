@@ -263,6 +263,10 @@ GET /users?sort=created_at:desc
 
 # Multiple sort clauses (applied left to right)
 GET /users?sort=status:asc,created_at:desc
+
+# Date-aware sorting for timestamp-like string fields
+# (e.g., created_at/updated_at stored as strings)
+GET /users?sort=created_at:desc,updated_at:asc
 ```
 
 #### Relationship Sorting

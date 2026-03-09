@@ -384,6 +384,7 @@ async def get_users(
                         <ul class="requirements-list">
                             <li><i class="fas fa-arrow-right"></i> <strong>Left to Right:</strong> Sort clauses are applied in order (left to right)</li>
                             <li><i class="fas fa-check"></i> <strong>Flexible Syntax:</strong> Use dot notation (role.name) or double-underscore (role__name)</li>
+                            <li><i class="fas fa-calendar"></i> <strong>Date-Aware:</strong> Timestamp-like string fields (created_at/updated_at) are sorted chronologically</li>
                             <li><i class="fas fa-shield-alt"></i> <strong>Validated:</strong> Invalid directions return clear 400 error messages</li>
                             <li><i class="fas fa-link"></i> <strong>Smart Joins:</strong> Automatically creates necessary joins for nested relationships</li>
                         </ul>

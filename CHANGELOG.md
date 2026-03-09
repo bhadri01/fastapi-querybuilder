@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.1.16] - 2026-03-09
+
+### Fixed
+- Global date sorting correctness for timestamp-like fields (`created_at`, `updated_at`) when values are stored as strings
+- Prevented lexicographic date ordering issues across months/years by applying datetime casting for timestamp-like string sort fields
+
+### Added
+- Regression tests for date-based sorting behavior:
+  - Verifies timestamp-like string fields are sorted using datetime casting
+  - Verifies regular string fields are not cast to datetime
+
+### Documentation
+- Updated README sorting examples with date-aware sorting usage
+- Updated docs/index.html sorting section to document chronological sorting for timestamp-like fields
+
 ## [0.1.15] - 2026-03-09
 
 ### Added

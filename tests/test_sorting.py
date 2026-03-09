@@ -33,6 +33,7 @@ class User(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String)
     created_at: Mapped[str] = mapped_column(String)
+    updated_at: Mapped[str] = mapped_column(String)
     role_id: Mapped[int] = mapped_column(ForeignKey("roles.id"))
 
     role: Mapped["Role"] = relationship("Role")
@@ -88,3 +89,22 @@ def test_build_query_rejects_invalid_sort_field():
         assert "Could not resolve attribute" in exc.detail
     else:
         raise AssertionError("Expected HTTPException for invalid sort field")
+
+
+def test_build_query_uses_datetime_expression_for_timestamp_like_string_fields():
+    params = QueryParams(filters=None, search=None, sort="created_at:desc,updated_at:asc", search_fields=None)
+
+    sql = _to_sql(build_query(User, params))
+
+    assert "ORDER BY" in sql
+    assert "CAST(users.created_at AS DATETIME) DESC" in sql
+    assert "CAST(users.updated_at AS DATETIME) ASC" in sql
+
+
+def test_build_query_keeps_regular_string_sort_unchanged():
+    params = QueryParams(filters=None, search=None, sort="name:asc", search_fields=None)
+
+    sql = _to_sql(build_query(User, params))
+
+    assert "ORDER BY users.name ASC" in sql
+    assert "CAST(users.name AS DATETIME)" not in sql

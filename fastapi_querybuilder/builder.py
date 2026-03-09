@@ -1,4 +1,4 @@
-from sqlalchemy import cast, select, or_, asc, desc, String, Enum
+from sqlalchemy import cast, select, or_, asc, desc, String, Enum, Date, DateTime
 from sqlalchemy.orm import RelationshipProperty
 from fastapi import HTTPException
 from .core import parse_filter_query, parse_filters, resolve_and_join_column_with_paths
@@ -160,9 +160,46 @@ def _apply_sorting(model_cls: Any, query: Any, sort_clauses: List[Tuple[List[str
                 detail=f"Error resolving sort field '{'.'.join(field_path)}': {str(e)}",
             )
 
-        order_expressions.append(asc(column) if sort_dir == "asc" else desc(column))
+        sort_expression = _get_sort_expression(column, field_path)
+        order_expressions.append(asc(sort_expression) if sort_dir == "asc" else desc(sort_expression))
 
     return query.order_by(*order_expressions)
+
+
+def _get_sort_expression(column: Any, field_path: List[str]) -> Any:
+    """
+    Return a DB expression suitable for sorting.
+
+    Date/time columns are sorted directly.
+    For string timestamp-like fields (e.g. created_at, updated_at), use a
+    datetime expression to avoid lexicographic mis-ordering across months/years.
+    """
+    if _is_datetime_like_column(column):
+        return column
+
+    if _is_string_timestamp_like_field(column, field_path):
+        return cast(column, DateTime)
+
+    return column
+
+
+def _is_datetime_like_column(column: Any) -> bool:
+    col_type = getattr(column, "type", None)
+    return isinstance(col_type, (Date, DateTime))
+
+
+def _is_string_timestamp_like_field(column: Any, field_path: List[str]) -> bool:
+    col_type = getattr(column, "type", None)
+    if not isinstance(col_type, String):
+        return False
+
+    field_name = field_path[-1].lower() if field_path else ""
+    return (
+        field_name.endswith("_at")
+        or field_name.endswith("_date")
+        or field_name.endswith("_on")
+        or field_name in {"date", "datetime", "timestamp"}
+    )
 
 
 def _get_column_metadata(model_class) -> Dict[str, Tuple[str, bool]]:
