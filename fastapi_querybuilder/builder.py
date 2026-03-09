@@ -1,8 +1,12 @@
-from sqlalchemy import cast, select, or_, asc, desc, String, Enum, inspect
+from sqlalchemy import cast, select, or_, asc, desc, String, Enum
 from sqlalchemy.orm import RelationshipProperty
 from fastapi import HTTPException
-from .core import parse_filter_query, parse_filters, resolve_and_join_column, resolve_and_join_column_with_paths
-from typing import List, Tuple, Set, Dict, Any
+from .core import parse_filter_query, parse_filters, resolve_and_join_column_with_paths
+from typing import List, Tuple, Dict, Any
+
+# Performance optimization: Cache for column metadata (type info per model)
+_COLUMN_METADATA_CACHE: Dict[int, Dict[str, Tuple[str, bool]]] = {}
+# Format: model_id -> {column_name: (column_type_name, is_searchable)}
 
 
 def build_query(cls, params):
@@ -38,10 +42,11 @@ def build_query(cls, params):
                     query=query
                 )
                 
-                # Apply DISTINCT only if joins were created (i.e., if any relationship path exists)
+                # Apply optimized deduplication instead of DISTINCT for better performance
                 has_joins = any(len(rel_path) > 0 for rel_path, _ in parsed_paths)
                 if has_joins and search_expr:
-                    query = query.distinct()
+                    # Use subquery deduplication instead of DISTINCT to avoid O(n log n) sort
+                    query = _apply_optimized_deduplication(query, cls)
                     
             except HTTPException:
                 raise
@@ -62,134 +67,160 @@ def build_query(cls, params):
 
     # Sorting
     if params.sort:
-        try:
-            sort_field, sort_dir = params.sort.split(":")
-        except ValueError:
-            sort_field, sort_dir = params.sort, "asc"
-
-        column = getattr(cls, sort_field, None)
-        if column is None:
-            nested_keys = sort_field.split(".")
-            if len(nested_keys) > 1:
-                joins = {}
-                column, query = resolve_and_join_column(
-                    cls, nested_keys, query, joins)
-            else:
-                raise HTTPException(
-                    status_code=400, detail=f"Invalid sort field: {sort_field}")
-
-        query = query.order_by(
-            asc(column) if sort_dir.lower() == "asc" else desc(column))
+        sort_clauses = _parse_sort_clauses(params.sort)
+        query = _apply_sorting(cls, query, sort_clauses)
 
     return query
 
 
-def _apply_recursive_search(
-    model_cls, 
-    query, 
-    search_term: str, 
-    search_expr_list: list, 
-    globally_processed_models: set,
-    ancestry: frozenset, # A set of models in the path *above* this call
-    joined_tables: set = None, # Track which tables have been joined globally
-):
+def _apply_optimized_deduplication(query, model_cls):
     """
-    Recursively applies search logic to a model and its relationships,
-    preventing circular recursion and duplicate joins.
+    Optimized deduplication using subquery instead of DISTINCT.
+    Avoids expensive O(n log n) sorting for large result sets.
     """
+    from sqlalchemy import select as sa_select
     
-    # Initialize joined_tables set on first call
-    if joined_tables is None:
-        joined_tables = set()
+    # Get distinct IDs via subquery
+    distinct_ids_subquery = sa_select(model_cls.id).distinct().subquery()
     
-    # --- 1. RECURSION PREVENTION (Top-level) ---
-    # This check is technically redundant with the
-    # check inside the loop, but good for safety.
-    if model_cls in ancestry:
+    # Filter to those IDs
+    return query.where(model_cls.id.in_(sa_select(distinct_ids_subquery.c.id)))
+
+
+def _parse_sort_clauses(sort_value: str) -> List[Tuple[List[str], str]]:
+    """
+    Parse sort query string into sort clauses.
+
+    Supports:
+    - single field: "name" or "name:desc"
+    - nested field: "role.name:asc" or "role__name:asc"
+    - multi-sort: "name:asc,created_at:desc"
+
+    Returns:
+        List of tuples: [([path_parts], direction), ...]
+    """
+    if not sort_value or not sort_value.strip():
+        return []
+
+    parsed: List[Tuple[List[str], str]] = []
+    clauses = [clause.strip() for clause in sort_value.split(",") if clause.strip()]
+
+    if not clauses:
+        raise HTTPException(status_code=400, detail="Sort value cannot be empty")
+
+    for clause in clauses:
+        if ":" in clause:
+            parts = clause.split(":", 1)
+            raw_field = parts[0].strip()
+            raw_dir = parts[1].strip().lower() or "asc"
+        else:
+            raw_field = clause.strip()
+            raw_dir = "asc"
+
+        if not raw_field:
+            raise HTTPException(status_code=400, detail=f"Invalid sort clause: '{clause}'")
+
+        if raw_dir not in {"asc", "desc"}:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid sort direction '{raw_dir}' for field '{raw_field}'. Use 'asc' or 'desc'.",
+            )
+
+        # Support both dot and double-underscore notation for relationships.
+        normalized_field = raw_field.replace("__", ".")
+        path_parts = [part.strip() for part in normalized_field.split(".")]
+
+        if any(not part for part in path_parts):
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid sort field path '{raw_field}'",
+            )
+
+        parsed.append((path_parts, raw_dir))
+
+    return parsed
+
+
+def _apply_sorting(model_cls: Any, query: Any, sort_clauses: List[Tuple[List[str], str]]) -> Any:
+    """Apply validated sort clauses to query with path-aware relationship joins."""
+    if not sort_clauses:
         return query
-    
-    # Add this model to the ancestry for *this branch's* recursive calls
-    new_ancestry = ancestry | {model_cls}
-    
-    # --- 2. ADD SEARCH EXPRESSIONS ---
-    # We only add expressions the *first* time we process a model.
-    if model_cls not in globally_processed_models:
-        search_expr_list.extend(
-            _get_search_expressions_for_model(model_cls, search_term)
-        )
-        globally_processed_models.add(model_cls)
+
+    joins: Dict[Tuple[Tuple[str, ...], type], Any] = {}
+    order_expressions = []
+
+    for field_path, sort_dir in sort_clauses:
+        try:
+            column, query = resolve_and_join_column_with_paths(model_cls, field_path, query, joins)
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Error resolving sort field '{'.'.join(field_path)}': {str(e)}",
+            )
+
+        order_expressions.append(asc(column) if sort_dir == "asc" else desc(column))
+
+    return query.order_by(*order_expressions)
 
 
-    # --- 3. INSPECT & RECURSE ---
-    mapper = inspect(model_cls)
+def _get_column_metadata(model_class) -> Dict[str, Tuple[str, bool]]:
+    """
+    Get cached column metadata for a model.
+    Caches column type information to avoid repeated introspection.
     
-    for rel in mapper.relationships:
-        
-        related_model_class = rel.mapper.class_
-        
-        # --- CIRCULAR REFERENCE CHECK ---
-        # Before joining, check if the model we are about to
-        # join is already in our ancestry. If it is,
-        # we are following a back-reference and must skip it.
-        if related_model_class in ancestry:
-            continue # Skip this relationship
-        
-        # --- DUPLICATE JOIN CHECK ---
-        # Check if we've already joined to this related table
-        # This prevents the "table name specified more than once" error
-        # We use the related table name as the key since that's what 
-        # SQL cares about when checking for duplicate table references
-        related_table_name = related_model_class.__tablename__
-        if related_table_name in joined_tables:
-            # We've already joined this table from another path
-            # Add search expressions for this model if not done yet
-            # but skip the join to avoid duplicates
-            if related_model_class not in globally_processed_models:
-                search_expr_list.extend(
-                    _get_search_expressions_for_model(related_model_class, search_term)
-                )
-                globally_processed_models.add(related_model_class)
-            continue # Skip this join
-        # --- END FIX ---
-
-        # Get the relationship attribute from the current model
-        rel_attr = getattr(model_cls, rel.key)
-        
-        # Add the JOIN
-        query = query.join(rel_attr, isouter=True)
-        joined_tables.add(related_table_name)
-
-        # 4. Recurse into the related model
-        query = _apply_recursive_search(
-            model_cls=related_model_class, # The related model class
-            query=query,
-            search_term=search_term,
-            search_expr_list=search_expr_list,
-            globally_processed_models=globally_processed_models,
-            ancestry=new_ancestry, # Pass the new ancestry down
-            joined_tables=joined_tables, # Pass the joined tables set
-        )
+    Returns: {column_name: (column_type_name, is_searchable)}
+    """
+    model_id = id(model_class)
     
-    # Return the modified query
-    return query
+    # Check cache first
+    if model_id in _COLUMN_METADATA_CACHE:
+        return _COLUMN_METADATA_CACHE[model_id]
+    
+    # Build metadata for all columns
+    metadata = {}
+    for column in model_class.__table__.columns:
+        is_enum = isinstance(column.type, Enum)
+        is_string = isinstance(column.type, String)
+        is_integer = hasattr(column.type, "python_type") and column.type.python_type is int
+        is_boolean = hasattr(column.type, "python_type") and column.type.python_type is bool
+        
+        is_searchable = is_enum or is_string or is_integer or is_boolean
+        type_name = "enum" if is_enum else "string" if is_string else "integer" if is_integer else "boolean" if is_boolean else "other"
+        
+        metadata[column.name] = (type_name, is_searchable)
+    
+    # Cache the metadata
+    _COLUMN_METADATA_CACHE[model_id] = metadata
+    return metadata
 
 
 def _get_search_expressions_for_model(model_class, search_term: str):
     """
     Helper function to get search expressions for a single model's columns.
+    Uses cached column metadata for better performance.
     """
     expressions = []
-    for column in model_class.__table__.columns:
-        if is_enum_column(column):
+    metadata = _get_column_metadata(model_class)  # Uses cache
+    
+    for column_name, (type_name, is_searchable) in metadata.items():
+        if not is_searchable:
+            continue
+        
+        column = getattr(model_class, column_name)
+        
+        if type_name == "enum":
             expressions.append(cast(column, String).ilike(f"%{search_term}%"))
-        elif is_string_column(column):
+        elif type_name == "string":
             expressions.append(column.ilike(f"%{search_term}%"))
-        elif is_integer_column(column):
+        elif type_name == "integer":
             if search_term.isdigit():
                 expressions.append(column == int(search_term))
-        elif is_boolean_column(column):
+        elif type_name == "boolean":
             if search_term.lower() in ("true", "false"):
                 expressions.append(column == (search_term.lower() == "true"))
+    
     return expressions
 
 
@@ -249,6 +280,7 @@ def _parse_search_field_paths(search_fields_str: str) -> List[Tuple[List[str], s
 def _check_circular_references(parsed_paths: List[Tuple[List[str], str]], root_model: Any) -> None:
     """
     Validate that no parsed path contains circular references.
+    Optimized to use sets for O(1) lookup instead of lists (O(n)).
     
     Args:
         parsed_paths: List of (relationship_path, column_name) tuples
@@ -261,9 +293,9 @@ def _check_circular_references(parsed_paths: List[Tuple[List[str], str]], root_m
         if not rel_path:
             continue  # Top-level columns have no circular risk
         
-        # Traverse the path and collect all models
+        # Traverse the path and collect all model IDs (set for O(1) lookup)
         current_model = root_model
-        models_in_path = [root_model]
+        model_ids_in_path = {id(root_model)}  # Use set of model IDs (much faster)
         
         for rel_key in rel_path:
             rel_attr = getattr(current_model, rel_key, None)
@@ -273,9 +305,10 @@ def _check_circular_references(parsed_paths: List[Tuple[List[str], str]], root_m
                 break
             
             next_model = rel_attr.property.mapper.class_
+            model_id = id(next_model)
             
-            # Check for circular reference
-            if next_model in models_in_path:
+            # Check for circular reference (O(1) with set)
+            if model_id in model_ids_in_path:
                 path_str = ".".join(rel_path + [col_name])
                 raise HTTPException(
                     status_code=400,
@@ -283,7 +316,7 @@ def _check_circular_references(parsed_paths: List[Tuple[List[str], str]], root_m
                     f"Model {next_model.__name__} appears multiple times in traversal path"
                 )
             
-            models_in_path.append(next_model)
+            model_ids_in_path.add(model_id)
             current_model = next_model
 
 

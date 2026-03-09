@@ -260,6 +260,9 @@ GET /users?sort=name  # :asc is optional
 
 # Descending order
 GET /users?sort=created_at:desc
+
+# Multiple sort clauses (applied left to right)
+GET /users?sort=status:asc,created_at:desc
 ```
 
 #### Relationship Sorting
@@ -270,6 +273,9 @@ GET /users?sort=role.name:asc
 
 # Deep relationship sorting
 GET /users?sort=role.department.name:desc
+
+# Double-underscore notation is also supported
+GET /users?sort=role__department__name:desc
 ```
 
 ---

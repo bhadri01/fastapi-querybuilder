@@ -8,7 +8,10 @@ class QueryParams:
     def __init__(
         self,
         filters: Optional[str] = Query(None, description="A JSON string representing filter conditions."),
-        sort: Optional[str] = Query(None, description="e.g. name:asc or user__email:desc"),
+        sort: Optional[str] = Query(
+            None,
+            description="e.g. name:asc, role.name:desc, role__department__name:asc"
+        ),
         search: Optional[str] = Query(None, description="A string for global search. Searches only the root model's string/enum columns. To search related models, use search_fields parameter."),
         search_fields: Optional[str] = Query(
             None,

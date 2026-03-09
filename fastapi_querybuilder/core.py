@@ -5,6 +5,7 @@ from sqlalchemy.orm import RelationshipProperty, aliased
 from sqlalchemy.sql import Select, and_
 from typing import Any, Optional, Dict, Tuple, List
 import json
+from functools import lru_cache
 from .operators import LOGICAL_OPERATORS, COMPARISON_OPERATORS
 
 def resolve_and_join_column(model, nested_keys: list[str], query: Select, joins: dict) -> Tuple[Any, Select]:
@@ -143,7 +144,15 @@ def parse_filters(model, filters: dict, query: Select) -> Tuple[Optional[Any], S
     return and_(*expressions) if expressions else None, query
 
 
+@lru_cache(maxsize=1024)
 def parse_filter_query(filters: Optional[str]) -> Optional[Dict]:
+    """
+    Parse JSON filter string with LRU caching (max 1024 entries).
+    Significantly speeds up repeated filter queries.
+    
+    IMPORTANT: Returns dict, but since dicts are mutable, cache key should only
+    be the string. The @lru_cache ensures identical filter strings don't re-parse.
+    """
     if not filters:
         return None
     try:

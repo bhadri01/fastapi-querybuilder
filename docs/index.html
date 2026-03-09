@@ -259,8 +259,8 @@ async def get_users(
                             <i class="fas fa-sort"></i>
                         </div>
                         <h4>Sorting</h4>
-                        <p>Sort by any field</p>
-                        <code>?sort=name:asc</code>
+                        <p>Multi-field sorting with nested paths</p>
+                        <code>?sort=status:asc,created_at:desc</code>
                     </div>
                     <div class="feature-card">
                         <div class="feature-icon">
@@ -347,7 +347,7 @@ async def get_users(
                         <i class="fas fa-sort"></i>
                         Dynamic Sorting
                     </h3>
-                    <p>Sort results by any field, including nested relationships.</p>
+                    <p>Sort results by any field, including nested relationships. Supports multiple sort clauses and both dot and double-underscore notation.</p>
 
                     <div class="sort-grid">
                         <div class="sort-card">
@@ -359,13 +359,34 @@ async def get_users(
                             <code>?sort=created_at:desc</code>
                         </div>
                         <div class="sort-card">
-                            <div class="sort-label">Nested Field</div>
+                            <div class="sort-label">Multiple Fields</div>
+                            <code>?sort=status:asc,created_at:desc</code>
+                        </div>
+                        <div class="sort-card">
+                            <div class="sort-label">Nested Field (dot)</div>
                             <code>?sort=role.name:asc</code>
+                        </div>
+                        <div class="sort-card">
+                            <div class="sort-label">Nested Field (underscore)</div>
+                            <code>?sort=role__name:asc</code>
                         </div>
                         <div class="sort-card">
                             <div class="sort-label">Deep Nesting</div>
                             <code>?sort=role.department.name:desc</code>
                         </div>
+                    </div>
+
+                    <div class="info-card" style="margin-top: 2rem;">
+                        <div class="info-card-header">
+                            <i class="fas fa-list-ol"></i>
+                            <h4>Multi-Sort Details</h4>
+                        </div>
+                        <ul class="requirements-list">
+                            <li><i class="fas fa-arrow-right"></i> <strong>Left to Right:</strong> Sort clauses are applied in order (left to right)</li>
+                            <li><i class="fas fa-check"></i> <strong>Flexible Syntax:</strong> Use dot notation (role.name) or double-underscore (role__name)</li>
+                            <li><i class="fas fa-shield-alt"></i> <strong>Validated:</strong> Invalid directions return clear 400 error messages</li>
+                            <li><i class="fas fa-link"></i> <strong>Smart Joins:</strong> Automatically creates necessary joins for nested relationships</li>
+                        </ul>
                     </div>
                 </div>
 

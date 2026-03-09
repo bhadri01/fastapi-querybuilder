@@ -3,8 +3,14 @@ from sqlalchemy.sql import and_, or_
 from typing import Any, Tuple
 from datetime import datetime, timedelta
 from sqlalchemy import DateTime
+from functools import lru_cache
 
+@lru_cache(maxsize=512)
 def _parse_datetime(value: str) -> datetime:
+    """
+    Parse datetime string with caching (max 512 entries).
+    Significantly speeds up repeated date parsing in filters.
+    """
     for fmt in ("%Y-%m-%d", "%Y-%m-%dT%H:%M:%S", "%Y-%m-%d %H:%M:%S", "%Y-%m-%dT%H:%M:%SZ"):
         try:
             return datetime.strptime(value, fmt)
