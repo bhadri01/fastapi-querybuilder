@@ -190,8 +190,11 @@ def _get_sort_expression(column: Any, field_path: List[str], case_sensitive: boo
     if _is_string_timestamp_like_field(column, field_path):
         return cast(column, DateTime)
 
-    if is_string_column(column) and not case_sensitive:
-        return func.lower(column)
+    if not case_sensitive:
+        if is_enum_column(column):
+            return func.lower(cast(column, String))
+        if is_string_column(column):
+            return func.lower(column)
 
     return column
 
@@ -202,6 +205,10 @@ def _is_datetime_like_column(column: Any) -> bool:
 
 
 def _is_string_timestamp_like_field(column: Any, field_path: List[str]) -> bool:
+    # Enum can subclass String, but enum values must not be cast as datetime.
+    if is_enum_column(column):
+        return False
+
     col_type = getattr(column, "type", None)
     if not isinstance(col_type, String):
         return False

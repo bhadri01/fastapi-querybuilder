@@ -1,6 +1,10 @@
 """Tests for fastapi_querybuilder/operators.py — all 14 filter operators."""
 
+import enum
+
 from sqlalchemy import Column, DateTime, Integer, String, select
+from sqlalchemy import Enum as SQLEnum
+from sqlalchemy.dialects import postgresql
 from sqlalchemy.dialects import sqlite
 from sqlalchemy.orm import declarative_base
 
@@ -19,22 +23,34 @@ from fastapi_querybuilder.operators import (
 Base = declarative_base()
 
 
+class StatusEnum(enum.Enum):
+    ACCOUNT_SETUP = "accountsetup"
+    PROFILE_SETUP = "profilesetup"
+
+
 class Item(Base):
     __tablename__ = "items"
     id = Column(Integer, primary_key=True)
     name = Column(String)
     age = Column(Integer)
     created_at = Column(DateTime)
+    status = Column(SQLEnum(StatusEnum, name="userstatus"))
 
 
 _name_col = Item.name
 _age_col = Item.age
 _dt_col = Item.created_at
+_status_col = Item.status
 
 
 def _expr_sql(expr) -> str:
     """Compile a SQLAlchemy expression to SQL string."""
     return str(expr.compile(dialect=sqlite.dialect(), compile_kwargs={"literal_binds": True}))
+
+
+def _expr_sql_postgres(expr) -> str:
+    """Compile a SQLAlchemy expression to PostgreSQL SQL string."""
+    return str(expr.compile(dialect=postgresql.dialect(), compile_kwargs={"literal_binds": True}))
 
 
 # ---------------------------------------------------------------------------
@@ -123,6 +139,36 @@ def test_in_operator_single_value():
     assert "42" in sql
 
 
+def test_eq_operator_enum_uses_cast_before_lower_for_postgres():
+    expr = COMPARISON_OPERATORS["$eq"](_status_col, "accountsetup")
+    sql = _expr_sql_postgres(expr)
+    assert "lower(CAST(items.status AS VARCHAR)) = 'accountsetup'" in sql
+
+
+def test_ne_operator_enum_uses_cast_before_lower_for_postgres():
+    expr = COMPARISON_OPERATORS["$ne"](_status_col, "profilesetup")
+    sql = _expr_sql_postgres(expr)
+    assert "lower(CAST(items.status AS VARCHAR)) != 'profilesetup'" in sql
+
+
+def test_in_operator_enum_uses_cast_before_lower_for_postgres():
+    expr = COMPARISON_OPERATORS["$in"](_status_col, ["accountsetup", "profilesetup"])
+    sql = _expr_sql_postgres(expr)
+    assert "lower(CAST(items.status AS VARCHAR)) IN ('accountsetup', 'profilesetup')" in sql
+
+
+def test_eq_operator_enum_member_value_uses_casefolded_value_for_postgres():
+    expr = COMPARISON_OPERATORS["$eq"](_status_col, StatusEnum.ACCOUNT_SETUP)
+    sql = _expr_sql_postgres(expr)
+    assert "lower(CAST(items.status AS VARCHAR)) = 'accountsetup'" in sql
+
+
+def test_in_operator_enum_member_values_use_casefolded_values_for_postgres():
+    expr = COMPARISON_OPERATORS["$in"](_status_col, [StatusEnum.ACCOUNT_SETUP, StatusEnum.PROFILE_SETUP])
+    sql = _expr_sql_postgres(expr)
+    assert "lower(CAST(items.status AS VARCHAR)) IN ('accountsetup', 'profilesetup')" in sql
+
+
 def test_legacy_case_sensitive_eq_operator_string_value():
     ops = get_comparison_operators(case_sensitive=True)
     expr = ops["$eq"](_name_col, "alice")
@@ -155,6 +201,21 @@ def test_ncontains_operator():
     assert "lic" in sql
 
 
+def test_contains_operator_enum_uses_cast_for_postgres():
+    expr = COMPARISON_OPERATORS["$contains"](_status_col, "setup")
+    sql = _expr_sql_postgres(expr)
+    assert "CAST(items.status AS VARCHAR)" in sql
+    assert "ILIKE" in sql.upper()
+
+
+def test_ncontains_operator_enum_uses_cast_for_postgres():
+    expr = COMPARISON_OPERATORS["$ncontains"](_status_col, "setup")
+    sql = _expr_sql_postgres(expr)
+    assert "CAST(items.status AS VARCHAR)" in sql
+    assert "NOT" in sql.upper()
+    assert "ILIKE" in sql.upper()
+
+
 # ---------------------------------------------------------------------------
 # $startswith / $endswith
 # ---------------------------------------------------------------------------
@@ -170,6 +231,20 @@ def test_endswith_operator():
     expr = COMPARISON_OPERATORS["$endswith"](_name_col, "ce")
     sql = _expr_sql(expr)
     assert "%ce" in sql
+
+
+def test_startswith_operator_enum_uses_cast_for_postgres():
+    expr = COMPARISON_OPERATORS["$startswith"](_status_col, "account")
+    sql = _expr_sql_postgres(expr)
+    assert "CAST(items.status AS VARCHAR)" in sql
+    assert "ILIKE" in sql.upper()
+
+
+def test_endswith_operator_enum_uses_cast_for_postgres():
+    expr = COMPARISON_OPERATORS["$endswith"](_status_col, "setup")
+    sql = _expr_sql_postgres(expr)
+    assert "CAST(items.status AS VARCHAR)" in sql
+    assert "ILIKE" in sql.upper()
 
 
 # ---------------------------------------------------------------------------

@@ -1,5 +1,8 @@
 from fastapi import HTTPException
+import enum
 from sqlalchemy import ForeignKey, String
+from sqlalchemy import Enum as SQLEnum
+from sqlalchemy.dialects import postgresql
 from sqlalchemy.dialects import sqlite
 from sqlalchemy.orm import Mapped, declarative_base, mapped_column, relationship
 
@@ -8,6 +11,11 @@ from fastapi_querybuilder.params import QueryParams
 
 
 Base = declarative_base()
+
+
+class UserStatus(enum.Enum):
+    ACCOUNT_SETUP = "accountsetup"
+    PROFILE_SETUP = "profilesetup"
 
 
 class Department(Base):
@@ -34,6 +42,7 @@ class User(Base):
     name: Mapped[str] = mapped_column(String)
     created_at: Mapped[str] = mapped_column(String)
     updated_at: Mapped[str] = mapped_column(String)
+    status: Mapped[UserStatus] = mapped_column(SQLEnum(UserStatus, name="userstatus"))
     role_id: Mapped[int] = mapped_column(ForeignKey("roles.id"))
 
     role: Mapped["Role"] = relationship("Role")
@@ -41,6 +50,10 @@ class User(Base):
 
 def _to_sql(query) -> str:
     return str(query.compile(dialect=sqlite.dialect(), compile_kwargs={"literal_binds": True}))
+
+
+def _to_postgres_sql(query) -> str:
+    return str(query.compile(dialect=postgresql.dialect(), compile_kwargs={"literal_binds": True}))
 
 
 def test_parse_sort_clauses_supports_multi_and_nested_formats():
@@ -123,3 +136,11 @@ def test_build_query_legacy_case_sensitive_sorting():
 
     assert "ORDER BY users.name ASC" in sql
     assert "lower(users.name)" not in sql.lower()
+
+
+def test_build_query_enum_sort_uses_cast_before_lower_for_postgres():
+    params = QueryParams(filters=None, search=None, sort="status:asc", search_fields=None)
+
+    sql = _to_postgres_sql(build_query(User, params))
+
+    assert "ORDER BY lower(CAST(users.status AS VARCHAR)) ASC" in sql

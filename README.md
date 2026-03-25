@@ -184,6 +184,10 @@ async def get_users(
 String filters are case-insensitive by default for `$eq`, `$ne`, and `$in`.
 Set `case_sensitive=true` to use legacy case-sensitive string filtering.
 
+For SQL enum columns (common in PostgreSQL), case-insensitive comparisons are enum-safe:
+- `$eq`, `$ne`, `$in` cast enum fields to text before case-insensitive comparison
+- enum-member values (not just plain strings) are normalized correctly
+
 ```bash
 # Single condition
 GET /users?filters={"name": {"$eq": "John Doe"}}
@@ -262,6 +266,9 @@ GET /users?filters={"created_at": {"$gte": "2023-01-01", "$lt": "2024-01-01"}}
 
 String sorting is case-insensitive by default.
 Set `case_sensitive=true` to use legacy case-sensitive text ordering.
+
+Enum sorting is also handled safely in case-insensitive mode by casting enum values to text first.
+Enum fields are never treated as timestamp-like string fields, even if their names end with `_at`, `_date`, or `_on`.
 
 ```bash
 # Ascending order (default)
@@ -405,23 +412,23 @@ GET /users/paginated?page=1&size=50&search=john&sort=created_at:desc
 
 | Operator | Description | Example | SQL Equivalent |
 |----------|-------------|---------|----------------|
-| `$eq` | Equal to | `{"age": {"$eq": 25}}` | `age = 25` |
-| `$ne` | Not equal to | `{"status": {"$ne": "inactive"}}` | `status != 'inactive'` |
+| `$eq` | Equal to | `{"age": {"$eq": 25}}` | `LOWER(name) = 'john'` / `LOWER(CAST(status AS VARCHAR)) = 'active'` |
+| `$ne` | Not equal to | `{"status": {"$ne": "inactive"}}` | `LOWER(name) != 'inactive'` / `LOWER(CAST(status AS VARCHAR)) != 'inactive'` |
 | `$gt` | Greater than | `{"age": {"$gt": 18}}` | `age > 18` |
 | `$gte` | Greater than or equal | `{"age": {"$gte": 21}}` | `age >= 21` |
 | `$lt` | Less than | `{"age": {"$lt": 65}}` | `age < 65` |
 | `$lte` | Less than or equal | `{"age": {"$lte": 64}}` | `age <= 64` |
-| `$in` | In array | `{"status": {"$in": ["active", "pending"]}}` | `status IN ('active', 'pending')` |
+| `$in` | In array | `{"status": {"$in": ["active", "pending"]}}` | `LOWER(name) IN (...)` / `LOWER(CAST(status AS VARCHAR)) IN (...)` |
 | `$isanyof` | Is any of (alias for $in) | `{"role": {"$isanyof": ["admin", "user"]}}` | `role IN ('admin', 'user')` |
 
 ### String Operators
 
 | Operator | Description | Example | SQL Equivalent |
 |----------|-------------|---------|----------------|
-| `$contains` | Contains substring | `{"name": {"$contains": "john"}}` | `name ILIKE '%john%'` |
-| `$ncontains` | Does not contain | `{"name": {"$ncontains": "test"}}` | `name NOT ILIKE '%test%'` |
-| `$startswith` | Starts with | `{"email": {"$startswith": "admin"}}` | `email ILIKE 'admin%'` |
-| `$endswith` | Ends with | `{"email": {"$endswith": ".com"}}` | `email ILIKE '%.com'` |
+| `$contains` | Contains substring | `{"name": {"$contains": "john"}}` | `name ILIKE '%john%'` / `CAST(status AS VARCHAR) ILIKE '%john%'` |
+| `$ncontains` | Does not contain | `{"name": {"$ncontains": "test"}}` | `name NOT ILIKE '%test%'` / `CAST(status AS VARCHAR) NOT ILIKE '%test%'` |
+| `$startswith` | Starts with | `{"email": {"$startswith": "admin"}}` | `email ILIKE 'admin%'` / `CAST(status AS VARCHAR) ILIKE 'admin%'` |
+| `$endswith` | Ends with | `{"email": {"$endswith": ".com"}}` | `email ILIKE '%.com'` / `CAST(status AS VARCHAR) ILIKE '%.com'` |
 
 ### Null/Empty Operators
 

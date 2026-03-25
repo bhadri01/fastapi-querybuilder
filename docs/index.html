@@ -295,6 +295,7 @@ async def get_users(
                         </div>
                         <p>String filters using <code>$eq</code>, <code>$ne</code>, and <code>$in</code> are case-insensitive by default.</p>
                         <p>Set <code>case_sensitive=true</code> to use legacy case-sensitive string filtering.</p>
+                        <p>For enum columns (for example PostgreSQL enums), case-insensitive matching is enum-safe and uses text casting internally.</p>
                     </div>
 
                     <div class="example-tabs">
@@ -364,6 +365,7 @@ async def get_users(
                             <h4>Case-Insensitive Text Sorting</h4>
                         </div>
                         <p>String sorting is case-insensitive by default. Use <code>case_sensitive=true</code> to restore legacy case-sensitive text ordering.</p>
+                        <p>Enum sorting is also safe in case-insensitive mode and enum fields are never treated as timestamp-like strings based on field name suffixes.</p>
                     </div>
 
                     <div class="sort-grid">
@@ -406,6 +408,7 @@ async def get_users(
                             <li><i class="fas fa-arrow-right"></i> <strong>Left to Right:</strong> Sort clauses are applied in order (left to right)</li>
                             <li><i class="fas fa-check"></i> <strong>Flexible Syntax:</strong> Use dot notation (role.name) or double-underscore (role__name)</li>
                             <li><i class="fas fa-font"></i> <strong>Default Behavior:</strong> String sorting is case-insensitive unless <code>case_sensitive=true</code></li>
+                            <li><i class="fas fa-list"></i> <strong>Enum Safety:</strong> Enum fields are cast safely for case-insensitive sorting and are excluded from timestamp-like date casting rules</li>
                             <li><i class="fas fa-calendar"></i> <strong>Date-Aware:</strong> Timestamp-like string fields (created_at/updated_at) are sorted chronologically</li>
                             <li><i class="fas fa-shield-alt"></i> <strong>Validated:</strong> Invalid directions return clear 400 error messages</li>
                             <li><i class="fas fa-link"></i> <strong>Smart Joins:</strong> Automatically creates necessary joins for nested relationships</li>
@@ -548,7 +551,7 @@ add_pagination(app)</code></pre>
                             </div>
                             <p>Matches values equal to specified value (case-insensitive for strings by default)</p>
                             <code>{"age": {"$eq": 25}}</code>
-                            <div class="operator-sql">SQL: <code>LOWER(name) = 'john'</code> or <code>age = 25</code></div>
+                            <div class="operator-sql">SQL: <code>LOWER(name) = 'john'</code> or <code>LOWER(CAST(status AS VARCHAR)) = 'active'</code> or <code>age = 25</code></div>
                         </div>
 
                         <div class="operator-card">
@@ -558,7 +561,7 @@ add_pagination(app)</code></pre>
                             </div>
                             <p>Matches values not equal to specified value (case-insensitive for strings by default)</p>
                             <code>{"status": {"$ne": "inactive"}}</code>
-                            <div class="operator-sql">SQL: <code>LOWER(status) != 'inactive'</code></div>
+                            <div class="operator-sql">SQL: <code>LOWER(name) != 'inactive'</code> or <code>LOWER(CAST(status AS VARCHAR)) != 'inactive'</code></div>
                         </div>
 
                         <div class="operator-card">
@@ -608,7 +611,7 @@ add_pagination(app)</code></pre>
                             </div>
                             <p>Matches any value in an array (case-insensitive for string arrays by default)</p>
                             <code>{"status": {"$in": ["active", "pending"]}}</code>
-                            <div class="operator-sql">SQL: <code>LOWER(status) IN ('active', 'pending')</code></div>
+                            <div class="operator-sql">SQL: <code>LOWER(name) IN ('active', 'pending')</code> or <code>LOWER(CAST(status AS VARCHAR)) IN ('active', 'pending')</code></div>
                         </div>
 
                         <div class="operator-card">
@@ -635,7 +638,7 @@ add_pagination(app)</code></pre>
                             </div>
                             <p>Case-insensitive substring match</p>
                             <code>{"name": {"$contains": "john"}}</code>
-                            <div class="operator-sql">SQL: <code>name ILIKE '%john%'</code></div>
+                            <div class="operator-sql">SQL: <code>name ILIKE '%john%'</code> or <code>CAST(status AS VARCHAR) ILIKE '%john%'</code></div>
                         </div>
 
                         <div class="operator-card">
@@ -645,7 +648,7 @@ add_pagination(app)</code></pre>
                             </div>
                             <p>Does not contain substring</p>
                             <code>{"name": {"$ncontains": "test"}}</code>
-                            <div class="operator-sql">SQL: <code>name NOT ILIKE '%test%'</code></div>
+                            <div class="operator-sql">SQL: <code>name NOT ILIKE '%test%'</code> or <code>CAST(status AS VARCHAR) NOT ILIKE '%test%'</code></div>
                         </div>
 
                         <div class="operator-card">
@@ -655,7 +658,7 @@ add_pagination(app)</code></pre>
                             </div>
                             <p>Matches strings starting with value</p>
                             <code>{"email": {"$startswith": "admin"}}</code>
-                            <div class="operator-sql">SQL: <code>email ILIKE 'admin%'</code></div>
+                            <div class="operator-sql">SQL: <code>email ILIKE 'admin%'</code> or <code>CAST(status AS VARCHAR) ILIKE 'admin%'</code></div>
                         </div>
 
                         <div class="operator-card">
@@ -665,7 +668,7 @@ add_pagination(app)</code></pre>
                             </div>
                             <p>Matches strings ending with value</p>
                             <code>{"email": {"$endswith": ".com"}}</code>
-                            <div class="operator-sql">SQL: <code>email ILIKE '%.com'</code></div>
+                            <div class="operator-sql">SQL: <code>email ILIKE '%.com'</code> or <code>CAST(status AS VARCHAR) ILIKE '%.com'</code></div>
                         </div>
                     </div>
                 </div>

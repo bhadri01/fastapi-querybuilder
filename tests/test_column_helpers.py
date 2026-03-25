@@ -174,3 +174,15 @@ def test_is_string_timestamp_like_field_nested_path():
 
 def test_is_string_timestamp_like_field_empty_path():
     assert _is_string_timestamp_like_field(_str_col, []) is False
+
+
+def test_is_string_timestamp_like_field_enum_with_at_suffix_is_false():
+    assert _is_string_timestamp_like_field(_enum_col, ["status_at"]) is False
+
+
+def test_is_string_timestamp_like_field_enum_with_date_suffix_is_false():
+    assert _is_string_timestamp_like_field(_enum_col, ["created_date"]) is False
+
+
+def test_is_string_timestamp_like_field_enum_with_on_suffix_is_false():
+    assert _is_string_timestamp_like_field(_enum_col, ["created_on"]) is False
