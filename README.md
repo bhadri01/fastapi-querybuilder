@@ -169,6 +169,7 @@ async def get_users(
     - filters: JSON string for filtering (e.g., {"name": {"$eq": "John"}})
     - sort: Sort field and direction (e.g., "name:asc" or "role.name:desc")
     - search: Global search term across all fields and relationships
+    - case_sensitive: Set to true to use legacy case-sensitive string filters/sorting
     """
     result = await session.execute(query)
     return result.scalars().all()
@@ -180,6 +181,9 @@ async def get_users(
 
 #### Basic Filtering
 
+String filters are case-insensitive by default for `$eq`, `$ne`, and `$in`.
+Set `case_sensitive=true` to use legacy case-sensitive string filtering.
+
 ```bash
 # Single condition
 GET /users?filters={"name": {"$eq": "John Doe"}}
@@ -189,6 +193,9 @@ GET /users?filters={"age": {"$gte": 18}, "is_active": {"$eq": true}}
 
 # Array values
 GET /users?filters={"status": {"$in": ["active", "pending"]}}
+
+# Legacy case-sensitive filtering
+GET /users?filters={"name": {"$eq": "John"}}&case_sensitive=true
 ```
 
 #### Logical Operators
@@ -253,6 +260,9 @@ GET /users?filters={"created_at": {"$gte": "2023-01-01", "$lt": "2024-01-01"}}
 
 #### Basic Sorting
 
+String sorting is case-insensitive by default.
+Set `case_sensitive=true` to use legacy case-sensitive text ordering.
+
 ```bash
 # Ascending order (default)
 GET /users?sort=name:asc
@@ -260,6 +270,9 @@ GET /users?sort=name  # :asc is optional
 
 # Descending order
 GET /users?sort=created_at:desc
+
+# Legacy case-sensitive string sort
+GET /users?sort=name:asc&case_sensitive=true
 
 # Multiple sort clauses (applied left to right)
 GET /users?sort=status:asc,created_at:desc

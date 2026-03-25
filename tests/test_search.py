@@ -282,8 +282,8 @@ def test_build_query_filters_and_sort_combined():
             _params(filters='{"name": {"$eq": "alice"}}', sort="name:asc"),
         )
     )
-    assert "search_users.name = 'alice'" in sql
-    assert "ORDER BY search_users.name ASC" in sql
+    assert "lower(search_users.name) = 'alice'" in sql.lower()
+    assert "order by lower(search_users.name) asc" in sql.lower()
 
 
 def test_build_query_search_and_sort_combined():
@@ -309,4 +309,21 @@ def test_build_query_filters_search_and_sort_all_combined():
     )
     assert "search_users.age >= 18" in sql
     assert "alice" in sql
+    assert "order by lower(search_users.name) asc" in sql.lower()
+
+
+def test_build_query_legacy_case_sensitive_sort_and_filter():
+    sql = _to_sql(
+        build_query(
+            User,
+            QueryParams(
+                filters='{"name": {"$eq": "alice"}}',
+                sort="name:asc",
+                search=None,
+                search_fields=None,
+                case_sensitive=True,
+            ),
+        )
+    )
+    assert "search_users.name = 'alice'" in sql
     assert "ORDER BY search_users.name ASC" in sql

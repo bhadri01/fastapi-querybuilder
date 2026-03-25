@@ -13,6 +13,7 @@ from fastapi_querybuilder.operators import (
     _lt_operator,
     _lte_operator,
     _isanyof_operator,
+    get_comparison_operators,
 )
 
 Base = declarative_base()
@@ -42,9 +43,9 @@ def _expr_sql(expr) -> str:
 
 
 def test_eq_operator_string_value():
-    expr = _eq_operator(_name_col, "alice")
+    expr = COMPARISON_OPERATORS["$eq"](_name_col, "alice")
     sql = _expr_sql(expr)
-    assert "items.name = 'alice'" in sql
+    assert "lower(items.name) = 'alice'" in sql.lower()
 
 
 def test_eq_operator_empty_string_becomes_is_null():
@@ -54,7 +55,7 @@ def test_eq_operator_empty_string_becomes_is_null():
 
 
 def test_eq_operator_integer_value():
-    expr = _eq_operator(_age_col, 30)
+    expr = COMPARISON_OPERATORS["$eq"](_age_col, 30)
     sql = _expr_sql(expr)
     assert "items.age = 30" in sql
 
@@ -65,9 +66,9 @@ def test_eq_operator_integer_value():
 
 
 def test_ne_operator_string_value():
-    expr = _ne_operator(_name_col, "alice")
+    expr = COMPARISON_OPERATORS["$ne"](_name_col, "alice")
     sql = _expr_sql(expr)
-    assert "items.name != 'alice'" in sql
+    assert "lower(items.name) != 'alice'" in sql.lower()
 
 
 def test_ne_operator_empty_string_becomes_is_not_null():
@@ -113,13 +114,27 @@ def test_lte_operator():
 def test_in_operator():
     expr = COMPARISON_OPERATORS["$in"](_name_col, ["alice", "bob"])
     sql = _expr_sql(expr)
-    assert "items.name IN ('alice', 'bob')" in sql
+    assert "lower(items.name) in ('alice', 'bob')" in sql.lower()
 
 
 def test_in_operator_single_value():
     expr = COMPARISON_OPERATORS["$in"](_age_col, [42])
     sql = _expr_sql(expr)
     assert "42" in sql
+
+
+def test_legacy_case_sensitive_eq_operator_string_value():
+    ops = get_comparison_operators(case_sensitive=True)
+    expr = ops["$eq"](_name_col, "alice")
+    sql = _expr_sql(expr)
+    assert "items.name = 'alice'" in sql
+
+
+def test_legacy_case_sensitive_sort_ne_operator_string_value():
+    ops = get_comparison_operators(case_sensitive=True)
+    expr = ops["$ne"](_name_col, "alice")
+    sql = _expr_sql(expr)
+    assert "items.name != 'alice'" in sql
 
 
 # ---------------------------------------------------------------------------

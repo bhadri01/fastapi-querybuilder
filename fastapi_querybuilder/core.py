@@ -6,7 +6,7 @@ from sqlalchemy.sql import Select, and_
 from typing import Any, Optional, Dict, Tuple, List
 import json
 from functools import lru_cache
-from .operators import LOGICAL_OPERATORS, COMPARISON_OPERATORS
+from .operators import LOGICAL_OPERATORS, get_comparison_operators
 
 def resolve_and_join_column(model, nested_keys: list[str], query: Select, joins: dict) -> Tuple[Any, Select]:
     current_model = model
@@ -98,9 +98,15 @@ def resolve_and_join_column_with_paths(
     )
 
 
-def parse_filters(model, filters: dict, query: Select) -> Tuple[Optional[Any], Select]:
+def parse_filters(
+    model,
+    filters: dict,
+    query: Select,
+    case_sensitive: bool = False,
+) -> Tuple[Optional[Any], Select]:
     expressions = []
     joins = {}
+    comparison_operators = get_comparison_operators(case_sensitive=case_sensitive)
 
     if not isinstance(filters, dict):
         raise HTTPException(
@@ -113,7 +119,12 @@ def parse_filters(model, filters: dict, query: Select) -> Tuple[Optional[Any], S
                     status_code=400, detail=f"Logical operator '{key}' must be a list")
             sub_expressions = []
             for sub_filter in value:
-                sub_expr, query = parse_filters(model, sub_filter, query)
+                sub_expr, query = parse_filters(
+                    model,
+                    sub_filter,
+                    query,
+                    case_sensitive=case_sensitive,
+                )
                 if sub_expr is not None:
                     sub_expressions.append(sub_expr)
             if sub_expressions:
@@ -124,16 +135,16 @@ def parse_filters(model, filters: dict, query: Select) -> Tuple[Optional[Any], S
             column, query = resolve_and_join_column(
                 model, nested_keys, query, joins)
             for operator, operand in value.items():
-                if operator not in COMPARISON_OPERATORS:
+                if operator not in comparison_operators:
                     raise HTTPException(
                         status_code=400, detail=f"Invalid operator '{operator}' for field '{key}'")
                 try:
                     if operator in ["$isempty", "$isnotempty"]:
                         expressions.append(
-                            COMPARISON_OPERATORS[operator](column))
+                            comparison_operators[operator](column))
                     else:
                         expressions.append(
-                            COMPARISON_OPERATORS[operator](column, operand))
+                            comparison_operators[operator](column, operand))
                 except Exception as e:
                     raise HTTPException(
                         status_code=400, detail=f"Error filtering '{key}': {e}")

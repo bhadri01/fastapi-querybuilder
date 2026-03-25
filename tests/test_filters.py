@@ -91,14 +91,14 @@ def test_parse_filters_simple_eq():
     expr, _ = parse_filters(User, {"name": {"$eq": "alice"}}, query)
     assert expr is not None
     sql = str(expr.compile(dialect=sqlite.dialect(), compile_kwargs={"literal_binds": True}))
-    assert "users.name = 'alice'" in sql
+    assert "lower(users.name) = 'alice'" in sql.lower()
 
 
 def test_parse_filters_simple_ne():
     query = select(User)
     expr, _ = parse_filters(User, {"name": {"$ne": "alice"}}, query)
     sql = str(expr.compile(dialect=sqlite.dialect(), compile_kwargs={"literal_binds": True}))
-    assert "users.name != 'alice'" in sql
+    assert "lower(users.name) != 'alice'" in sql.lower()
 
 
 def test_parse_filters_integer_gt():
@@ -133,7 +133,7 @@ def test_parse_filters_multiple_fields_combined_with_and():
     query = select(User)
     expr, _ = parse_filters(User, {"name": {"$eq": "alice"}, "age": {"$gte": 18}}, query)
     sql = str(expr.compile(dialect=sqlite.dialect(), compile_kwargs={"literal_binds": True}))
-    assert "users.name = 'alice'" in sql
+    assert "lower(users.name) = 'alice'" in sql.lower()
     assert "users.age >= 18" in sql
     assert "AND" in sql
 
@@ -154,7 +154,7 @@ def test_parse_filters_and_operator():
     filters = {"$and": [{"name": {"$eq": "alice"}}, {"age": {"$gt": 18}}]}
     expr, _ = parse_filters(User, filters, query)
     sql = str(expr.compile(dialect=sqlite.dialect(), compile_kwargs={"literal_binds": True}))
-    assert "users.name = 'alice'" in sql
+    assert "lower(users.name) = 'alice'" in sql.lower()
     assert "users.age > 18" in sql
     assert "AND" in sql
 
@@ -252,7 +252,14 @@ def test_parse_filters_deeply_nested_relationship():
     sql = _to_sql(modified_query)
     assert "JOIN" in sql.upper()
     assert "depts" in sql
-    assert "Engineering" in _to_sql(modified_query.where(expr))
+    assert "engineering" in _to_sql(modified_query.where(expr)).lower()
+
+
+def test_parse_filters_legacy_case_sensitive_eq():
+    query = select(User)
+    expr, _ = parse_filters(User, {"name": {"$eq": "alice"}}, query, case_sensitive=True)
+    sql = str(expr.compile(dialect=sqlite.dialect(), compile_kwargs={"literal_binds": True}))
+    assert "users.name = 'alice'" in sql
 
 
 # ---------------------------------------------------------------------------

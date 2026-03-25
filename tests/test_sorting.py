@@ -74,9 +74,9 @@ def test_build_query_supports_multi_sort_and_nested_paths():
     sql = _to_sql(build_query(User, params))
 
     assert "ORDER BY" in sql
-    assert "users.name ASC" in sql
-    assert "roles_1.name DESC" in sql
-    assert "departments_1.name ASC" in sql
+    assert "lower(users.name) asc" in sql.lower()
+    assert "lower(roles_1.name) desc" in sql.lower()
+    assert "lower(departments_1.name) asc" in sql.lower()
 
 
 def test_build_query_rejects_invalid_sort_field():
@@ -106,5 +106,20 @@ def test_build_query_keeps_regular_string_sort_unchanged():
 
     sql = _to_sql(build_query(User, params))
 
-    assert "ORDER BY users.name ASC" in sql
+    assert "order by lower(users.name) asc" in sql.lower()
     assert "CAST(users.name AS DATETIME)" not in sql
+
+
+def test_build_query_legacy_case_sensitive_sorting():
+    params = QueryParams(
+        filters=None,
+        search=None,
+        sort="name:asc",
+        search_fields=None,
+        case_sensitive=True,
+    )
+
+    sql = _to_sql(build_query(User, params))
+
+    assert "ORDER BY users.name ASC" in sql
+    assert "lower(users.name)" not in sql.lower()

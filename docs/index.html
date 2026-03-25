@@ -267,7 +267,7 @@ async def get_users(
                             <i class="fas fa-search"></i>
                         </div>
                         <h4>Searching</h4>
-                        <p>Global recursive search</p>
+                        <p>Smart search with explicit fields</p>
                         <code>?search=john</code>
                     </div>
                 </div>
@@ -287,6 +287,15 @@ async def get_users(
                         Advanced Filtering
                     </h3>
                     <p>Build complex queries with JSON-based filters and multiple operators.</p>
+
+                    <div class="info-card" style="margin-bottom: 2rem;">
+                        <div class="info-card-header">
+                            <i class="fas fa-font"></i>
+                            <h4>Case Sensitivity</h4>
+                        </div>
+                        <p>String filters using <code>$eq</code>, <code>$ne</code>, and <code>$in</code> are case-insensitive by default.</p>
+                        <p>Set <code>case_sensitive=true</code> to use legacy case-sensitive string filtering.</p>
+                    </div>
 
                     <div class="example-tabs">
                         <div class="example-tab">
@@ -349,6 +358,14 @@ async def get_users(
                     </h3>
                     <p>Sort results by any field, including nested relationships. Supports multiple sort clauses and both dot and double-underscore notation.</p>
 
+                    <div class="info-card" style="margin-bottom: 2rem;">
+                        <div class="info-card-header">
+                            <i class="fas fa-sort-alpha-down"></i>
+                            <h4>Case-Insensitive Text Sorting</h4>
+                        </div>
+                        <p>String sorting is case-insensitive by default. Use <code>case_sensitive=true</code> to restore legacy case-sensitive text ordering.</p>
+                    </div>
+
                     <div class="sort-grid">
                         <div class="sort-card">
                             <div class="sort-label">Ascending</div>
@@ -374,6 +391,10 @@ async def get_users(
                             <div class="sort-label">Deep Nesting</div>
                             <code>?sort=role.department.name:desc</code>
                         </div>
+                        <div class="sort-card">
+                            <div class="sort-label">Legacy Case-Sensitive</div>
+                            <code>?sort=name:asc&case_sensitive=true</code>
+                        </div>
                     </div>
 
                     <div class="info-card" style="margin-top: 2rem;">
@@ -384,6 +405,7 @@ async def get_users(
                         <ul class="requirements-list">
                             <li><i class="fas fa-arrow-right"></i> <strong>Left to Right:</strong> Sort clauses are applied in order (left to right)</li>
                             <li><i class="fas fa-check"></i> <strong>Flexible Syntax:</strong> Use dot notation (role.name) or double-underscore (role__name)</li>
+                            <li><i class="fas fa-font"></i> <strong>Default Behavior:</strong> String sorting is case-insensitive unless <code>case_sensitive=true</code></li>
                             <li><i class="fas fa-calendar"></i> <strong>Date-Aware:</strong> Timestamp-like string fields (created_at/updated_at) are sorted chronologically</li>
                             <li><i class="fas fa-shield-alt"></i> <strong>Validated:</strong> Invalid directions return clear 400 error messages</li>
                             <li><i class="fas fa-link"></i> <strong>Smart Joins:</strong> Automatically creates necessary joins for nested relationships</li>
@@ -524,9 +546,9 @@ add_pagination(app)</code></pre>
                                 <h4>$eq</h4>
                                 <span class="operator-badge">Equal</span>
                             </div>
-                            <p>Matches values equal to specified value</p>
+                            <p>Matches values equal to specified value (case-insensitive for strings by default)</p>
                             <code>{"age": {"$eq": 25}}</code>
-                            <div class="operator-sql">SQL: <code>age = 25</code></div>
+                            <div class="operator-sql">SQL: <code>LOWER(name) = 'john'</code> or <code>age = 25</code></div>
                         </div>
 
                         <div class="operator-card">
@@ -534,9 +556,9 @@ add_pagination(app)</code></pre>
                                 <h4>$ne</h4>
                                 <span class="operator-badge">Not Equal</span>
                             </div>
-                            <p>Matches values not equal to specified value</p>
+                            <p>Matches values not equal to specified value (case-insensitive for strings by default)</p>
                             <code>{"status": {"$ne": "inactive"}}</code>
-                            <div class="operator-sql">SQL: <code>status != 'inactive'</code></div>
+                            <div class="operator-sql">SQL: <code>LOWER(status) != 'inactive'</code></div>
                         </div>
 
                         <div class="operator-card">
@@ -584,9 +606,9 @@ add_pagination(app)</code></pre>
                                 <h4>$in</h4>
                                 <span class="operator-badge">In Array</span>
                             </div>
-                            <p>Matches any value in an array</p>
+                            <p>Matches any value in an array (case-insensitive for string arrays by default)</p>
                             <code>{"status": {"$in": ["active", "pending"]}}</code>
-                            <div class="operator-sql">SQL: <code>status IN (...)</code></div>
+                            <div class="operator-sql">SQL: <code>LOWER(status) IN ('active', 'pending')</code></div>
                         </div>
 
                         <div class="operator-card">

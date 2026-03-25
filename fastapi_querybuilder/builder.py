@@ -1,4 +1,4 @@
-from sqlalchemy import cast, select, or_, asc, desc, String, Enum, Date, DateTime
+from sqlalchemy import cast, select, or_, asc, desc, String, Enum, Date, DateTime, func
 from sqlalchemy.orm import RelationshipProperty
 from fastapi import HTTPException
 from .core import parse_filter_query, parse_filters, resolve_and_join_column_with_paths
@@ -18,7 +18,12 @@ def build_query(cls, params):
     # Filters
     parsed_filters = parse_filter_query(params.filters)
     if parsed_filters:
-        filter_expr, query = parse_filters(cls, parsed_filters, query)
+        filter_expr, query = parse_filters(
+            cls,
+            parsed_filters,
+            query,
+            case_sensitive=params.case_sensitive,
+        )
         if filter_expr is not None:
             query = query.where(filter_expr)
 
@@ -68,7 +73,7 @@ def build_query(cls, params):
     # Sorting
     if params.sort:
         sort_clauses = _parse_sort_clauses(params.sort)
-        query = _apply_sorting(cls, query, sort_clauses)
+        query = _apply_sorting(cls, query, sort_clauses, case_sensitive=params.case_sensitive)
 
     return query
 
@@ -141,7 +146,12 @@ def _parse_sort_clauses(sort_value: str) -> List[Tuple[List[str], str]]:
     return parsed
 
 
-def _apply_sorting(model_cls: Any, query: Any, sort_clauses: List[Tuple[List[str], str]]) -> Any:
+def _apply_sorting(
+    model_cls: Any,
+    query: Any,
+    sort_clauses: List[Tuple[List[str], str]],
+    case_sensitive: bool = False,
+) -> Any:
     """Apply validated sort clauses to query with path-aware relationship joins."""
     if not sort_clauses:
         return query
@@ -160,13 +170,13 @@ def _apply_sorting(model_cls: Any, query: Any, sort_clauses: List[Tuple[List[str
                 detail=f"Error resolving sort field '{'.'.join(field_path)}': {str(e)}",
             )
 
-        sort_expression = _get_sort_expression(column, field_path)
+        sort_expression = _get_sort_expression(column, field_path, case_sensitive=case_sensitive)
         order_expressions.append(asc(sort_expression) if sort_dir == "asc" else desc(sort_expression))
 
     return query.order_by(*order_expressions)
 
 
-def _get_sort_expression(column: Any, field_path: List[str]) -> Any:
+def _get_sort_expression(column: Any, field_path: List[str], case_sensitive: bool = False) -> Any:
     """
     Return a DB expression suitable for sorting.
 
@@ -179,6 +189,9 @@ def _get_sort_expression(column: Any, field_path: List[str]) -> Any:
 
     if _is_string_timestamp_like_field(column, field_path):
         return cast(column, DateTime)
+
+    if is_string_column(column) and not case_sensitive:
+        return func.lower(column)
 
     return column
 
@@ -255,8 +268,8 @@ def _get_search_expressions_for_model(model_class, search_term: str):
             if search_term.isdigit():
                 expressions.append(column == int(search_term))
         elif type_name == "boolean":
-            if search_term.lower() in ("true", "false"):
-                expressions.append(column == (search_term.lower() == "true"))
+            if _is_boolean_search_term(search_term):
+                expressions.append(column == (_normalize_boolean_search_term(search_term) == "true"))
     
     return expressions
 
@@ -401,8 +414,8 @@ def _build_search_for_explicit_fields(
                 if search_term.isdigit():
                     search_expressions.append(column == int(search_term))
             elif is_boolean_column(column):
-                if search_term.lower() in ("true", "false"):
-                    search_expressions.append(column == (search_term.lower() == "true"))
+                if _is_boolean_search_term(search_term):
+                    search_expressions.append(column == (_normalize_boolean_search_term(search_term) == "true"))
             
         except HTTPException:
             # Re-raise invalid column/relationship errors
@@ -434,3 +447,11 @@ def is_integer_column(column):
 def is_boolean_column(column):
     """Check if a column is a boolean type"""
     return hasattr(column.type, "python_type") and column.type.python_type is bool
+
+
+def _normalize_boolean_search_term(search_term: str) -> str:
+    return search_term.casefold()
+
+
+def _is_boolean_search_term(search_term: str) -> bool:
+    return _normalize_boolean_search_term(search_term) in ("true", "false")
