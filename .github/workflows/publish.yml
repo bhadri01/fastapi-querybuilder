@@ -28,17 +28,13 @@ jobs:
           pip install poetry
           sudo apt-get install -y gpg  # For commit/tag verification
       
-      # 3. Verify GPG-signed tag (if applicable)
-      - name: Fetch and verify tag
+      # 3. Verify pushed tag
+      - name: Verify tag
         run: |
-          # Get the actual tag name from the ref
-          TAG_NAME=$(echo ${{ github.ref }} | cut -d'/' -f3)
-          
-          # Fetch all tags from origin
-          git fetch --tags
+          TAG_NAME="${{ github.ref_name }}"
 
-          # Verify the tag
-          if git tag -l | grep -q "$TAG_NAME"; then
+          # On tag-triggered runs, checkout already has the pushed tag reference.
+          if git rev-parse -q --verify "refs/tags/$TAG_NAME" >/dev/null; then
             echo "Tag $TAG_NAME verified successfully"
           else
             echo "Tag $TAG_NAME does not exist. Exiting..."
