@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="FastAPI QueryBuilder changelog and release highlights.">
+    <meta name="keywords" content="fastapi, sqlalchemy, query builder, changelog, releases, updates">
+    <title>FastAPI QueryBuilder - Changelog</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500;600&display=swap"
+        rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="./style.css">
+</head>
+
+<body>
+    <header class="header">
+        <div class="header-container">
+            <div class="header-left">
+                <button class="mobile-menu-btn" aria-label="Toggle menu">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </button>
+                <a href="./index.html" class="logo">
+                    <i class="fas fa-search"></i>
+                    <span>FastAPI QueryBuilder</span>
+                </a>
+            </div>
+            <nav class="header-nav">
+                <a href="./index.html">Documentation</a>
+                <a href="#latest">Latest</a>
+                <a href="#stability">Stability</a>
+                <a href="#sorting">Sorting</a>
+                <a href="#history">History</a>
+            </nav>
+            <div class="header-right">
+                <button class="theme-toggle" aria-label="Toggle theme" title="Toggle dark mode">
+                    <i class="fas fa-sun sun-icon"></i>
+                    <i class="fas fa-moon moon-icon"></i>
+                </button>
+                <a href="https://github.com/bhadri01/fastapi-querybuilder" target="_blank" class="github-link"
+                    aria-label="GitHub repository">
+                    <i class="fab fa-github"></i>
+                </a>
+            </div>
+        </div>
+    </header>
+
+    <div class="layout-wrapper">
+        <aside class="sidebar">
+            <div class="sidebar-content">
+                <div class="sidebar-search">
+                    <i class="fas fa-search"></i>
+                    <input type="text" placeholder="Search docs..." id="search-input">
+                </div>
+
+                <nav class="sidebar-nav">
+                    <div class="nav-section">
+                        <h3>Changelog</h3>
+                        <ul>
+                            <li><a href="#latest"><i class="fas fa-bolt"></i> Latest Highlights</a></li>
+                            <li><a href="#stability"><i class="fas fa-shield"></i> Stability & Fixes</a></li>
+                            <li><a href="#sorting"><i class="fas fa-sort"></i> Sorting & Performance</a></li>
+                            <li><a href="#origins"><i class="fas fa-seedling"></i> Foundation Release</a></li>
+                            <li><a href="#history"><i class="fas fa-clock-rotate-left"></i> Full Version History</a></li>
+                        </ul>
+                    </div>
+
+                    <div class="nav-section">
+                        <h3>Resources</h3>
+                        <ul>
+                            <li><a href="./index.html"><i class="fas fa-book"></i> Main Docs</a></li>
+                            <li><a href="https://github.com/bhadri01/fastapi-querybuilder/blob/main/CHANGELOG.md" target="_blank"><i
+                                        class="fab fa-github"></i> Markdown Changelog</a></li>
+                            <li><a href="https://pypi.org/project/fastapi-querybuilder/" target="_blank"><i
+                                        class="fab fa-python"></i> PyPI</a></li>
+                        </ul>
+                    </div>
+                </nav>
+            </div>
+        </aside>
+
+        <main class="main">
+            <div class="content-container">
+                <section class="hero">
+                    <div class="hero-badge">
+                        <i class="fas fa-clock"></i>
+                        <span>Release Notes</span>
+                    </div>
+                    <h1 class="hero-title">Changelog</h1>
+                    <p class="hero-subtitle">One page with sectioned release highlights. Track what changed, what was fixed,
+                        and why each release matters.</p>
+                    <div class="hero-actions">
+                        <a href="#latest" class="btn btn-primary">
+                            <i class="fas fa-arrow-down"></i>
+                            Latest Highlights
+                        </a>
+                        <a href="./index.html" class="btn btn-secondary">
+                            <i class="fas fa-book-open"></i>
+                            Back to Docs
+                        </a>
+                    </div>
+                </section>
+
+                <section id="latest" class="section">
+                    <h2 class="section-title">
+                        <i class="fas fa-bolt"></i>
+                        Latest Highlights
+                    </h2>
+                    <p class="section-intro">Key updates from the most recent releases.</p>
+
+                    <div class="feature-grid">
+                        <article class="feature-card">
+                            <div class="feature-icon"><i class="fas fa-tag"></i></div>
+                            <h4>v0.1.18 - PostgreSQL Enum Safety</h4>
+                            <p>Case-insensitive filters and string operators are now enum-safe on PostgreSQL through text casting.</p>
+                            <ul>
+                                <li>Fixed enum errors for $eq, $ne, $in, $contains, $ncontains, $startswith, $endswith</li>
+                                <li>Protected sorting from incorrect datetime casting on enum columns</li>
+                                <li>Hardened release workflow tag verification</li>
+                            </ul>
+                        </article>
+
+                        <article class="feature-card">
+                            <div class="feature-icon"><i class="fas fa-sliders-h"></i></div>
+                            <h4>v0.1.17 - Case-Insensitive Defaults</h4>
+                            <p>Filtering and sorting became case-insensitive by default for better user-facing behavior.</p>
+                            <ul>
+                                <li>Default case-insensitive string filtering for $eq, $ne, $in</li>
+                                <li>Default case-insensitive sorting for root and relationship fields</li>
+                                <li>Added case_sensitive query parameter for legacy behavior</li>
+                            </ul>
+                        </article>
+                    </div>
+                </section>
+
+                <section id="stability" class="section">
+                    <h2 class="section-title">
+                        <i class="fas fa-shield"></i>
+                        Stability and Compatibility
+                    </h2>
+
+                    <div class="success-card">
+                        <h4><i class="fas fa-database"></i> PostgreSQL Compatibility Fixes (v0.1.18)</h4>
+                        <p>The generated SQL now safely handles enum-backed fields in case-insensitive paths by casting enums to text before applying lower/ilike logic.</p>
+                        <ul>
+                            <li>Prevents runtime errors such as function lower(enum_type) does not exist</li>
+                            <li>Keeps API behavior consistent without requiring endpoint changes</li>
+                            <li>Adds regression coverage for enum members and enum columns</li>
+                        </ul>
+                    </div>
+
+                    <div class="info-card">
+                        <h4><i class="fas fa-vial"></i> Test Coverage Added</h4>
+                        <p>Recent releases added targeted tests for:</p>
+                        <ul>
+                            <li>Enum-safe SQL expression generation</li>
+                            <li>Case-insensitive comparison behavior</li>
+                            <li>Sorting behavior on regular strings, timestamps, and enums</li>
+                        </ul>
+                    </div>
+                </section>
+
+                <section id="sorting" class="section">
+                    <h2 class="section-title">
+                        <i class="fas fa-sort"></i>
+                        Sorting and Performance Track
+                    </h2>
+
+                    <div class="feature-grid">
+                        <article class="operator-card">
+                            <div class="operator-header">
+                                <h4>v0.1.16</h4>
+                                <span class="operator-badge">Date Sorting Fix</span>
+                            </div>
+                            <p>Improved chronological correctness for timestamp-like string fields by applying datetime casts when needed.</p>
+                        </article>
+
+                        <article class="operator-card">
+                            <div class="operator-header">
+                                <h4>v0.1.15</h4>
+                                <span class="operator-badge">Sorting Upgrade</span>
+                            </div>
+                            <p>Introduced multi-field sorting, nested relationship sorting via double-underscore paths, and strict direction validation.</p>
+                        </article>
+                    </div>
+                </section>
+
+                <section id="origins" class="section">
+                    <h2 class="section-title">
+                        <i class="fas fa-seedling"></i>
+                        Foundation Release
+                    </h2>
+
+                    <div class="info-card">
+                        <h4><i class="fas fa-flag"></i> v0.1.14</h4>
+                        <p>Established core capabilities: filtering, sorting, searching, SQLAlchemy integration, pagination support,
+                            and typed package metadata.</p>
+                    </div>
+                </section>
+
+                <section id="history" class="section">
+                    <h2 class="section-title">
+                        <i class="fas fa-clock-rotate-left"></i>
+                        Full Version History
+                    </h2>
+                    <p>Version index from the repository tags. Historical entries without full notes are kept visible for release traceability.</p>
+
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Version</th>
+                                <th>Date</th>
+                                <th>Change Light</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>0.1.18</td><td>2026-03-25</td><td>Enum-safe case-insensitive filtering/sorting and release pipeline fix</td></tr>
+                            <tr><td>0.1.17</td><td>2026-03-25</td><td>Default case-insensitive filtering and sorting with compatibility switch</td></tr>
+                            <tr><td>0.1.16</td><td>2026-03-09</td><td>Date-aware sorting correction for timestamp-like string fields</td></tr>
+                            <tr><td>0.1.15</td><td>2026-03-09</td><td>Multi-sort, nested relationship sort, and sorting performance updates</td></tr>
+                            <tr><td>0.1.14</td><td>2026-02-17</td><td>Core feature baseline release</td></tr>
+                            <tr><td>0.1.13</td><td>2025-11-05</td><td>Historical release tag present</td></tr>
+                            <tr><td>0.1.12</td><td>2025-10-26</td><td>Historical release tag present</td></tr>
+                            <tr><td>0.1.11</td><td>2025-09-18</td><td>Historical release tag present</td></tr>
+                            <tr><td>0.1.10</td><td>2025-08-30</td><td>Historical release tag present</td></tr>
+                            <tr><td>0.1.9</td><td>2025-06-09</td><td>Historical release tag present</td></tr>
+                            <tr><td>0.1.8</td><td>2025-06-09</td><td>Historical release tag present</td></tr>
+                            <tr><td>0.1.7</td><td>2025-06-08</td><td>Historical release tag present</td></tr>
+                            <tr><td>0.1.6</td><td>2025-06-08</td><td>Historical release tag present</td></tr>
+                            <tr><td>0.1.5</td><td>2025-06-08</td><td>Historical release tag present</td></tr>
+                            <tr><td>0.1.4</td><td>2025-03-25</td><td>Historical release tag present</td></tr>
+                        </tbody>
+                    </table>
+                </section>
+            </div>
+        </main>
+
+        <aside class="right-sidebar"></aside>
+    </div>
+
+    <script src="./script.js"></script>
+</body>
+
+</html>
