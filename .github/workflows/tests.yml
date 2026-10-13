@@ -1,0 +1,65 @@
+name: Tests and security
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tests-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ['3.10', '3.11', '3.12', '3.13', '3.14']
+    env:
+      POETRY_VIRTUALENVS_IN_PROJECT: 'true'
+      POETRY_NO_INTERACTION: 'true'
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install Poetry
+        run: python -m pip install poetry==2.5.1
+      - name: Install locked dependencies
+        run: |
+          poetry check --lock
+          poetry sync --with dev
+      - name: Run tests
+        run: poetry run pytest --cov=fastapi_querybuilder --cov-report=term-missing
+      - name: Lint package
+        run: poetry run ruff check fastapi_querybuilder
+      - name: Check types
+        run: poetry run mypy
+      - name: Audit installed dependencies
+        run: poetry run pip-audit --skip-editable
+      - name: Build distributions
+        run: poetry run python -m build
+      - name: Check wheel metadata
+        run: |
+          poetry run python - <<'PYTHON'
+          import email
+          from pathlib import Path
+          from zipfile import ZipFile
+
+          from packaging.requirements import Requirement
+
+          wheel = next(Path("dist").glob("*.whl"))
+          with ZipFile(wheel) as archive:
+              metadata_path = next(name for name in archive.namelist() if name.endswith("/METADATA"))
+              metadata = email.message_from_bytes(archive.read(metadata_path))
+              requirements = {Requirement(value).name for value in metadata.get_all("Requires-Dist", [])}
+              assert "poetry" not in requirements, requirements
+              assert "fastapi_querybuilder/py.typed" in archive.namelist()
+          PYTHON

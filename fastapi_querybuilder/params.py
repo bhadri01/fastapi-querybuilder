@@ -2,6 +2,7 @@
 
 from typing import Optional
 from fastapi import Query
+from fastapi.params import Param
 
 
 class QueryParams:
@@ -25,8 +26,8 @@ class QueryParams:
             "Default false applies case-insensitive behavior."
         )
     ):
-        self.filters = filters
-        self.search = search
-        self.sort = sort
-        self.search_fields = search_fields
+        self.filters = None if isinstance(filters, Param) else filters
+        self.search = None if isinstance(search, Param) else search
+        self.sort = None if isinstance(sort, Param) else sort
+        self.search_fields = None if isinstance(search_fields, Param) else search_fields
         self.case_sensitive = case_sensitive if isinstance(case_sensitive, bool) else False

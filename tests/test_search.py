@@ -156,8 +156,8 @@ def test_explicit_search_fields_with_joins_applies_deduplication():
     sql = _to_sql(
         build_query(User, _params(search="eng", search_fields="role.name"))
     )
-    # Subquery-based deduplication should appear (IN subquery)
-    assert "IN (" in sql.upper() or "in (" in sql
+    # Correlated existence tests cannot multiply the outer root rows.
+    assert "EXISTS (" in sql.upper()
 
 
 # ---------------------------------------------------------------------------

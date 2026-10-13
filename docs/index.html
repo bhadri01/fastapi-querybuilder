@@ -431,7 +431,7 @@ async def get_users(
                             <i class="fas fa-rocket"></i>
                             <h4>Performance-Optimized Search</h4>
                         </div>
-                        <p>By default, search only queries the root model's fields (5-100x faster). Use <code>search_fields</code> parameter to explicitly search nested relationships.</p>
+                        <p>By default, search only queries the root model's fields, without relationship joins. Use <code>search_fields</code> parameter to explicitly search nested relationships.</p>
                     </div>
 
                     <div class="code-block">
@@ -498,10 +498,28 @@ GET /users?search=dev&search_fields=name,email,role.name,role.department.name</c
                             <li><i class="fas fa-bolt"></i> <strong>Fast Default:</strong> Top-level search = 0 joins, no DISTINCT overhead</li>
                             <li><i class="fas fa-bullseye"></i> <strong>Explicit Control:</strong> Specify exactly which fields to search</li>
                             <li><i class="fas fa-project-diagram"></i> <strong>Nested Paths:</strong> Use dot notation for relationships (role.name, role.department.name)</li>
-                            <li><i class="fas fa-shield-alt"></i> <strong>Safe:</strong> Circular reference detection prevents infinite loops</li>
-                            <li><i class="fas fa-compress-alt"></i> <strong>Smart Joins:</strong> Creates joins only for specified nested paths</li>
+                            <li><i class="fas fa-shield-alt"></i> <strong>Bounded:</strong> Server-owned query budgets and mapped field validation</li>
+                            <li><i class="fas fa-compress-alt"></i> <strong>Unique Roots:</strong> Correlated EXISTS keeps relationship search results unique</li>
                         </ul>
                     </div>
+                </div>
+
+                <div id="security" class="subsection">
+                    <h3 class="subsection-title">Security and query limits (unreleased)</h3>
+                    <p>Configure <code>QueryPolicy</code> in application code to allow specific filter,
+                        search, sort, and relationship paths. Client <code>search_fields</code> cannot
+                        override these allowlists. Empty policies allow no fields; omitted policies
+                        preserve mapped-field access.</p>
+                    <p><code>QueryLimits</code> bounds filter bytes (16 KiB), nesting (8), predicates
+                        (100), list items (100), relationship depth (4), total joins (8), search length
+                        (256), search fields (20), sort fields (10), and field path length (256).
+                        Invalid or excessive input returns HTTP 400.</p>
+                    <p>Related filters and searches preserve unique root rows; related sorting uses
+                        window functions to deduplicate before pagination. Authentication, tenant/row
+                        authorization, rate limits, indexes, and database statement timeouts are still
+                        application responsibilities.</p>
+                    <p>See the <a href="https://github.com/bhadri01/fastapi-querybuilder#security-and-query-limits">
+                        complete configuration and compatibility guide</a> before upgrading.</p>
                 </div>
 
                 <!-- Pagination -->

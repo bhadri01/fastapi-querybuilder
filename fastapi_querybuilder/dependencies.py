@@ -6,10 +6,10 @@ from .builder import build_query
 from typing import Type
 
 
-def QueryBuilder(model: Type):
+def QueryBuilder(model: Type, *, limits=None, policy=None):
     def wrapper(
         request: Request,
         params: QueryParams = Depends()
     ):
-        return build_query(model, params)
+        return build_query(model, params, limits=limits, policy=policy)
     return Depends(wrapper)
