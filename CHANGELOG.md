@@ -1,5 +1,26 @@
 # Changelog
 
+## [Unreleased]
+
+### Security
+- Add finite server-configurable query budgets and per-operation field/relationship allowlists
+- Reject arbitrary Python attributes, nonterminal columns, malformed operands, non-finite JSON, and oversized/deep query input with HTTP 400
+- Bound total relationship work across logical filter scopes, searching, and sorting
+- Remove Poetry from runtime dependencies, refresh the lockfile, and require patched HTTP-stack dependency floors
+
+### Fixed
+- Preserve separate-child AND semantics while using correlated EXISTS for relationship filters/search, eliminating duplicated outer rows
+- Deduplicate related sorting in SQL before pagination/count, including composite and non-id primary keys, without breaking appended root-model WHERE clauses
+- Resolve different relationship paths to the same model using separate aliases
+- Avoid retaining mutable filter parse results in a process-wide cache
+- Keep default search inside server allowlists and return no matches when no eligible search expression exists
+- Build `$isanyof` comparisons from bound values and handle empty membership lists as false
+
+### Added
+- Real SQLAlchemy/SQLite and FastAPI regression tests for security boundaries and result cardinality
+- Pull-request CI for supported Python versions, linting, typing, package builds, and dependency auditing
+- Document compatibility changes and production safeguards; no version bump or release
+
 ## [0.1.18] - 2026-03-25
 
 ### Fixed

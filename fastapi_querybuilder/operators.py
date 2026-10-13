@@ -81,11 +81,9 @@ def _lte_operator(column, value):
 
 
 def _isanyof_operator(column, value):
-    return or_(*[
-        _adjust_date_range(column, v, "$eq")[
-            0] if isinstance(v, str) else column == v
-        for v in value
-    ])
+    # Each value is a comparison, never a raw SQL string; empty membership is false.
+    from sqlalchemy import false
+    return or_(*[_eq_operator(column, item) for item in value]) if value else false()
 
 
 def _in_operator_insensitive(column, value):

@@ -12,7 +12,7 @@ A powerful, flexible query builder for FastAPI applications with SQLAlchemy. Eas
 
 - **🔍 Advanced Filtering** — JSON-based filters with 14 comparison and 2 logical operators
 - **🔄 Dynamic Sorting** — Sort by any field, including nested relationships
-- **🔎 Recursive Global Search** — Intelligent search across all model relationships automatically
+- **🔎 Controlled Search** — Root-model search with explicit related fields and server allowlists
 - **🔗 Relationship Support** — Query nested relationships with automatic joins
 - **📄 Pagination Ready** — Works seamlessly with [fastapi-pagination](https://github.com/uriyyo/fastapi-pagination)
 - **🗑️ Soft Delete Support** — Automatically excludes soft-deleted records with `deleted_at` field
@@ -31,12 +31,123 @@ A powerful, flexible query builder for FastAPI applications with SQLAlchemy. Eas
   - [Sorting](#sorting)
   - [Searching](#searching)
   - [Pagination](#pagination)
+- [Security and Query Limits](#security-and-query-limits)
 - [Operator Reference](#operator-reference)
 - [Examples](#examples)
 - [Developer Guide](#developer-guide)
   - [Running the Example Application](#running-the-example-application)
   - [Contributing](#contributing)
 - [License](#license)
+
+---
+
+## Security and Query Limits
+
+Treat client query strings as untrusted. Every `QueryBuilder`/`build_query` call
+has finite defaults, including calls made outside FastAPI. Rejected paths,
+malformed filter structures, disallowed fields, and over-budget queries raise HTTP 400.
+Database-specific value/type constraints still belong in application validation.
+
+Pass limits and allowlists from application code, never from request parameters:
+
+```python
+from fastapi_querybuilder import QueryBuilder, QueryLimits, QueryPolicy
+
+USER_QUERY_POLICY = QueryPolicy(
+    filter_fields={"name", "age", "role.name"},
+    search_fields={"name", "role.name"},
+    sort_fields={"name", "created_at"},
+    relationships={"role"},
+)
+
+@app.get("/users")
+async def users(
+    query=QueryBuilder(
+        User,
+        policy=USER_QUERY_POLICY,
+        limits=QueryLimits(max_predicates=30, max_joins=4),
+    ),
+    session: AsyncSession = Depends(get_db),
+):
+    # Authentication and tenant/row authorization remain your responsibility.
+    query = query.where(User.tenant_id == current_tenant_id)
+    return (await session.execute(query.limit(50))).scalars().all()
+```
+
+`build_query(User, params, policy=..., limits=...)` accepts the same options.
+Each optional allowlist defaults to `None` for backward-compatible mapped-field
+access; an empty collection permits no fields/relationships. Allowlists contain
+exact, case-sensitive dotted paths, with no wildcard expansion. Every traversed
+relationship prefix must be listed: `role.department.name` needs both `role`
+and `role.department`. Sort `role__name` is normalized to `role.name`. Default
+search uses only allowed root fields; an empty or inapplicable search allowlist
+matches no rows. Explicit disallowed fields raise HTTP 400. These policies do
+not redact returned model columns or replace row-level authorization.
+
+| Budget | Default |
+| --- | ---: |
+| UTF-8 filter JSON bytes (`max_filter_bytes`) | 16,384 |
+| Filter dictionary depth (`max_filter_depth`, root is 1) | 8 |
+| Comparison predicates (`max_predicates`) | 100 |
+| Items per `$in` / `$isanyof` list (`max_in_items`) | 100 |
+| Relationships in one field path (`max_relationship_depth`) | 4 |
+| Total relationship joins across filters/search/sort (`max_joins`) | 8 |
+| Search characters (`max_search_length`) | 256 |
+| Search fields (`max_search_fields`) | 20 |
+| Sort fields (`max_sort_fields`) | 10 |
+| Characters in a field path (`max_field_length`) | 256 |
+
+Logical group counts are bounded alongside predicates. Membership operands must
+be flat lists of scalar values. Integer-column operands must fit signed 64-bit
+integers; larger numeric search terms only participate in string searches. Limits can be raised deliberately with a
+`QueryLimits` instance; they cannot be disabled by a client. Applications with
+more than 20 default-searchable columns should configure a narrower search
+allowlist or explicitly raise the budget.
+
+Relationship filters keep each logical dictionary's scope: two conditions in
+one dictionary refer to the same joined child, while separate `$and` branches
+may match different children. Correlated EXISTS avoids multiplying outer rows.
+Relationship sorting uses SQL window functions to choose the first related row
+in the requested lexicographic order (minimum for ascending, maximum for
+descending), returning one root before LIMIT/OFFSET/count. Composite and non-`id`
+primary keys are supported. Root-model `.where(...)` clauses remain composable.
+Sorting requires a database with window-function support (SQLite 3.25+,
+PostgreSQL, MySQL 8+); NULL ordering follows the database. Use a root primary-key
+sort as a final tie-breaker for stable pagination.
+
+These are query-construction limits, not a database execution-time guarantee.
+Add authentication, tenant/row authorization, response pagination, rate limits,
+request-size limits at your gateway, appropriate indexes, and database statement
+timeouts. Substring searches can still scan large tables. Protect sensitive
+columns with explicit allowlists even if they are not returned in responses.
+The example app is for local demonstrations, not an authenticated production API.
+
+### Compatibility notes
+
+Oversized queries previously accepted now return HTTP 400; mapped columns are
+required at the end of every field path. Invalid suffixes and Python attributes
+are no longer silently accepted. Searches with no applicable expression now
+match no rows rather than returning an unfiltered result. Relationship queries
+return unique roots; consumers should not rely on duplicate rows. Poetry is a
+development/build tool only and is no longer installed with the runtime package.
+This unreleased change updates dependency security floors; review the lockfile
+and run integration tests in your application before upgrading.
+
+### Verification
+
+```bash
+pipx install poetry==2.5.1
+poetry sync --with dev
+poetry run pytest
+poetry run ruff check fastapi_querybuilder
+poetry run mypy
+poetry run python -m build
+poetry run pip-audit --skip-editable
+```
+
+The PR workflow runs tests on Python 3.10–3.14, plus lint, typing, build, and
+dependency auditing. The release workflow still requires a separately pushed
+version tag; this change does not publish a release.
 
 ---
 
@@ -49,7 +160,7 @@ pip install fastapi-querybuilder
 **Requirements:**
 
 - Python 3.10+
-- FastAPI 0.115+
+- FastAPI 0.135.2+ (with compatible Starlette 1.3.1+)
 - SQLAlchemy 2.0+
 - fastapi-pagination 0.13.2+
 
@@ -341,7 +452,7 @@ GET /users?search=dev&search_fields=name,email,role.name,role.department.name
 **Nested Field Notation:**
 - Use dots (`.`) to traverse relationships: `role.name`, `role.department.name`
 - Automatically creates necessary joins only for specified paths
-- Applies DISTINCT only when joins are needed
+- Uses correlated EXISTS for relationship search so each root appears once
 - Supports multiple paths to the same model
 - Prevents circular references
 
@@ -354,9 +465,9 @@ GET /users?search=dev&search_fields=name,email,role.name,role.department.name
 
 **Performance Benefits:**
 
-- **Default behavior**: 0 joins, no DISTINCT → 5-100x faster than recursive search
+- **Default behavior**: root-model search avoids relationship joins
 - **Explicit fields**: Only creates joins for specified nested paths
-- **Smart optimization**: DISTINCT applied only when joins exist
+- **Predictable results**: relationship filters/search use correlated EXISTS; related sorting deduplicates before pagination
 - **Predictable results**: Know exactly which fields are being searched
 
 ```bash
@@ -599,7 +710,8 @@ git remote add upstream https://github.com/bhadri01/fastapi-querybuilder.git
 # Create virtual environment and install dependencies
 python -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
-pip install -e ".[dev]"
+pip install poetry==2.5.1
+poetry sync --with dev
 ```
 
 #### Making Changes
